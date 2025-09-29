@@ -1,21 +1,4 @@
-# app.py - VERSIÓN FINAL PARA STREAMLIT CLOUD
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime
-import json
-
-# Configuración de la página
-st.set_page_config(
-    page_title="Calculadora de Importaciones Pro",
-    page_icon="🚀",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# calculadora_importaciones.py
+# app.py - VERSIÓN CORREGIDA Y OPTIMIZADA PARA STREAMLIT CLOUD
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -129,7 +112,7 @@ class CalculadoraImportacionesStreamlit:
             st.title("🚀 Calculadora Pro")
             st.markdown("---")
             
-            # Navegación
+            # Navegación - Usando índice único para evitar claves duplicadas
             opciones = [
                 '🏠 Inicio',
                 '⚙️ Parámetros', 
@@ -142,18 +125,22 @@ class CalculadoraImportacionesStreamlit:
                 '💾 Exportar'
             ]
             
+            # Usar una clave única para el selectbox
             seleccion = st.selectbox(
                 "Navegación",
                 opciones,
-                key='pagina_seleccionada'
+                key='sidebar_navegacion'  # Clave única
             )
+            
+            # Actualizar la página seleccionada
+            st.session_state.pagina_seleccionada = seleccion
             
             st.markdown("---")
             
             # Estado del sistema
             st.subheader("📊 Estado Actual")
             total_skus = len(st.session_state.productos)
-            total_unidades = st.session_state.productos['cantidad'].sum()
+            total_unidades = st.session_state.productos['cantidad'].sum() if not st.session_state.productos.empty else 0
             
             col1, col2 = st.columns(2)
             with col1:
@@ -166,7 +153,7 @@ class CalculadoraImportacionesStreamlit:
                 st.metric("Rentabilidad", f"{rent_promedio:.1%}")
             
             # Botón de recálculo
-            if st.button("🔄 Recalcular Todo", use_container_width=True, type="primary"):
+            if st.button("🔄 Recalcular Todo", use_container_width=True, type="primary", key="btn_recalcular_sidebar"):
                 self.recalcular_todo()
                 st.success("¡Sistema actualizado!")
             
@@ -186,12 +173,15 @@ class CalculadoraImportacionesStreamlit:
             st.metric("📦 SKUs Registrados", total_skus)
             
         with col2:
-            total_unidades = st.session_state.productos['cantidad'].sum()
+            total_unidades = st.session_state.productos['cantidad'].sum() if not st.session_state.productos.empty else 0
             st.metric("🔄 Unidades Totales", f"{total_unidades:,}")
             
         with col3:
-            inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
-            st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD")
+            if not st.session_state.productos.empty:
+                inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
+                st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD")
+            else:
+                st.metric("💰 Inversión Total", "$0 USD")
             
         with col4:
             if not st.session_state.ventas.empty:
@@ -241,15 +231,16 @@ class CalculadoraImportacionesStreamlit:
             # Acciones rápidas
             st.subheader("🚀 Acciones Rápidas")
             
-            if st.button("📊 Calcular Todo Automáticamente", use_container_width=True):
+            if st.button("📊 Calcular Todo Automáticamente", use_container_width=True, key="btn_calcular_todo"):
                 with st.spinner("Calculando todos los módulos..."):
                     self.recalcular_todo()
                 st.success("¡Análisis completo!")
             
-            if st.button("🆕 Reiniciar Datos", use_container_width=True):
-                if st.button("⚠️ Confirmar Reinicio", type="secondary"):
+            if st.button("🆕 Reiniciar Datos", use_container_width=True, key="btn_reiniciar"):
+                if st.button("⚠️ Confirmar Reinicio", type="secondary", key="btn_confirmar_reinicio"):
                     self.inicializar_datos()
                     st.success("¡Datos reiniciados!")
+                    st.rerun()
             
             # Consejos rápidos
             st.subheader("💡 Consejos")
@@ -307,7 +298,8 @@ class CalculadoraImportacionesStreamlit:
                     min_value=1000.0,
                     max_value=10000.0,
                     step=100.0,
-                    help="Tipo de cambio actual USD a COP"
+                    help="Tipo de cambio actual USD a COP",
+                    key="usd_cop_input"
                 )
                 
                 st.session_state.parametros['CNY_USD'] = st.number_input(
@@ -317,7 +309,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=1.0,
                     step=0.01,
                     format="%.4f",
-                    help="Tipo de cambio CNY a USD"
+                    help="Tipo de cambio CNY a USD",
+                    key="cny_usd_input"
                 )
             
             with col2:
@@ -327,7 +320,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['flete_internacional']),
                     min_value=0.0,
                     step=100.0,
-                    help="Costo del flete marítimo o aéreo"
+                    help="Costo del flete marítimo o aéreo",
+                    key="flete_input"
                 )
                 
                 st.session_state.parametros['seguro_porcentaje'] = st.number_input(
@@ -337,7 +331,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.1,
                     step=0.005,
                     format="%.3f",
-                    help="Seguro sobre el valor de la mercancía (típico 1-3%)"
+                    help="Seguro sobre el valor de la mercancía (típico 1-3%)",
+                    key="seguro_input"
                 )
                 
                 st.session_state.parametros['porcentaje_perdidas'] = st.number_input(
@@ -347,7 +342,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.2,
                     step=0.01,
                     format="%.3f",
-                    help="Porcentaje estimado por pérdidas en transporte (1-5%)"
+                    help="Porcentaje estimado por pérdidas en transporte (1-5%)",
+                    key="perdidas_input"
                 )
         
         with tab2:
@@ -362,7 +358,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.5,
                     step=0.01,
                     format="%.3f",
-                    help="IVA aplicable a la importación (19% en Colombia)"
+                    help="IVA aplicable a la importación (19% en Colombia)",
+                    key="iva_input"
                 )
             
             with col2:
@@ -372,7 +369,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['despacho_aduana']),
                     min_value=0.0,
                     step=10000.0,
-                    help="Costo de agente aduanero y trámites"
+                    help="Costo de agente aduanero y trámites",
+                    key="despacho_input"
                 )
                 
                 st.session_state.parametros['transporte_interno'] = st.number_input(
@@ -380,7 +378,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['transporte_interno']),
                     min_value=0.0,
                     step=10000.0,
-                    help="Transporte desde puerto a bodega"
+                    help="Transporte desde puerto a bodega",
+                    key="transporte_input"
                 )
                 
                 st.session_state.parametros['almacenaje'] = st.number_input(
@@ -388,7 +387,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['almacenaje']),
                     min_value=0.0,
                     step=10000.0,
-                    help="Costo de almacenamiento mensual"
+                    help="Costo de almacenamiento mensual",
+                    key="almacenaje_input"
                 )
         
         with tab3:
@@ -403,7 +403,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=1.0,
                     step=0.05,
                     format="%.3f",
-                    help="Margen de ganancia deseado después de todos los costos"
+                    help="Margen de ganancia deseado después de todos los costos",
+                    key="margen_input"
                 )
                 
                 st.session_state.parametros['costo_packaging'] = st.number_input(
@@ -411,7 +412,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['costo_packaging']),
                     min_value=0.0,
                     step=500.0,
-                    help="Costo de empaque por producto"
+                    help="Costo de empaque por producto",
+                    key="packaging_input"
                 )
                 
                 st.session_state.parametros['costo_envio_local'] = st.number_input(
@@ -419,7 +421,8 @@ class CalculadoraImportacionesStreamlit:
                     value=float(st.session_state.parametros['costo_envio_local']),
                     min_value=0.0,
                     step=1000.0,
-                    help="Costo de envío al cliente final"
+                    help="Costo de envío al cliente final",
+                    key="envio_input"
                 )
             
             with col2:
@@ -431,7 +434,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.3,
                     step=0.01,
                     format="%.3f",
-                    help="Comisión para categoría Electrónicos (12-16%)"
+                    help="Comisión para categoría Electrónicos (12-16%)",
+                    key="comision_electronicos_input"
                 )
                 
                 st.session_state.parametros['comision_ml_hogar'] = st.number_input(
@@ -441,7 +445,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.3,
                     step=0.01,
                     format="%.3f",
-                    help="Comisión para categoría Hogar (14-18%)"
+                    help="Comisión para categoría Hogar (14-18%)",
+                    key="comision_hogar_input"
                 )
                 
                 st.session_state.parametros['comision_ml_moda'] = st.number_input(
@@ -451,7 +456,8 @@ class CalculadoraImportacionesStreamlit:
                     max_value=0.3,
                     step=0.01,
                     format="%.3f",
-                    help="Comisión para categoría Moda (16-20%)"
+                    help="Comisión para categoría Moda (16-20%)",
+                    key="comision_moda_input"
                 )
         
         with tab4:
@@ -461,17 +467,17 @@ class CalculadoraImportacionesStreamlit:
         st.markdown("---")
         col_btn1, col_btn2, col_btn3 = st.columns(3)
         with col_btn1:
-            if st.button("💾 Guardar Parámetros", use_container_width=True, type="primary"):
+            if st.button("💾 Guardar Parámetros", use_container_width=True, type="primary", key="btn_guardar_parametros"):
                 st.success("✅ Parámetros guardados correctamente")
                 st.session_state.calculos_realizados = False
         
         with col_btn2:
-            if st.button("🔄 Recalcular Todo", use_container_width=True):
+            if st.button("🔄 Recalcular Todo", use_container_width=True, key="btn_recalcular_parametros"):
                 self.recalcular_todo()
                 st.success("✅ Todos los cálculos actualizados")
         
         with col_btn3:
-            if st.button("📊 Validar Parámetros", use_container_width=True):
+            if st.button("📊 Validar Parámetros", use_container_width=True, key="btn_validar_parametros"):
                 self.validar_parametros()
 
     def mostrar_resumen_parametros(self):
@@ -580,7 +586,7 @@ class CalculadoraImportacionesStreamlit:
             if 'Total FOB USD' in edited_df.columns:
                 edited_df = edited_df.drop(['Total FOB USD', 'Peso Total kg', 'Volumen Total m³'], axis=1)
             
-            if st.button("💾 Guardar Cambios en Productos", use_container_width=True, type="primary"):
+            if st.button("💾 Guardar Cambios en Productos", use_container_width=True, type="primary", key="btn_guardar_productos"):
                 st.session_state.productos = edited_df
                 st.session_state.calculos_realizados = False
                 st.success("✅ Productos actualizados correctamente")
@@ -592,11 +598,11 @@ class CalculadoraImportacionesStreamlit:
             # Formulario para nuevo producto rápido
             with st.form("nuevo_producto_rapido"):
                 st.write("➕ Agregar Producto Rápido")
-                nuevo_sku = st.text_input("SKU*", value=f"SKU_{datetime.now().strftime('%y%m%d%H%M')}")
-                nueva_desc = st.text_input("Descripción*")
-                nueva_cant = st.number_input("Cantidad*", min_value=1, value=100)
-                nuevo_precio = st.number_input("Precio USD*", min_value=0.0, value=10.0, step=0.1)
-                nueva_categoria = st.selectbox("Categoría*", ["Electrónicos", "Hogar", "Moda", "Deportes", "Otros"])
+                nuevo_sku = st.text_input("SKU*", value=f"SKU_{datetime.now().strftime('%y%m%d%H%M')}", key="nuevo_sku")
+                nueva_desc = st.text_input("Descripción*", key="nueva_desc")
+                nueva_cant = st.number_input("Cantidad*", min_value=1, value=100, key="nueva_cant")
+                nuevo_precio = st.number_input("Precio USD*", min_value=0.0, value=10.0, step=0.1, key="nuevo_precio")
+                nueva_categoria = st.selectbox("Categoría*", ["Electrónicos", "Hogar", "Moda", "Deportes", "Otros"], key="nueva_categoria")
                 
                 if st.form_submit_button("🎯 Agregar Producto", use_container_width=True):
                     if nuevo_sku and nueva_desc:
@@ -629,10 +635,10 @@ class CalculadoraImportacionesStreamlit:
                 sku_a_eliminar = st.selectbox(
                     "Seleccione SKU a eliminar:",
                     options=st.session_state.productos['sku'].tolist(),
-                    key="eliminar_sku"
+                    key="eliminar_sku_select"
                 )
                 
-                if st.button("❌ Eliminar SKU Seleccionado", use_container_width=True):
+                if st.button("❌ Eliminar SKU Seleccionado", use_container_width=True, key="btn_eliminar_sku"):
                     st.session_state.productos = st.session_state.productos[
                         st.session_state.productos['sku'] != sku_a_eliminar
                     ]
@@ -648,10 +654,10 @@ class CalculadoraImportacionesStreamlit:
                 inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
                 peso_total = (st.session_state.productos['cantidad'] * st.session_state.productos['peso_unitario_kg']).sum()
                 
-                st.metric("Total SKUs", total_skus)
-                st.metric("Total Unidades", f"{total_unidades:,}")
-                st.metric("Inversión Total", f"${inversion_total:,.0f} USD")
-                st.metric("Peso Total", f"{peso_total:,.1f} kg")
+                st.metric("Total SKUs", total_skus, key="metric_skus")
+                st.metric("Total Unidades", f"{total_unidades:,}", key="metric_unidades")
+                st.metric("Inversión Total", f"${inversion_total:,.0f} USD", key="metric_inversion")
+                st.metric("Peso Total", f"{peso_total:,.1f} kg", key="metric_peso")
             else:
                 st.info("No hay productos registrados")
 
@@ -680,7 +686,7 @@ class CalculadoraImportacionesStreamlit:
                 key="aranceles_editor"
             )
             
-            if st.button("💾 Guardar Cambios en Aranceles", use_container_width=True, type="primary"):
+            if st.button("💾 Guardar Cambios en Aranceles", use_container_width=True, type="primary", key="btn_guardar_aranceles"):
                 st.session_state.aranceles = edited_df
                 st.session_state.calculos_realizados = False
                 st.success("✅ Aranceles actualizados correctamente")
@@ -689,14 +695,14 @@ class CalculadoraImportacionesStreamlit:
         with col2:
             st.subheader("📥 Agregar HS Code")
             with st.form("nuevo_hs_code"):
-                hs_code = st.text_input("HS Code*", placeholder="ej. 8518.30.00")
-                descripcion = st.text_input("Descripción*", placeholder="ej. Auriculares, audífonos")
-                arancel = st.number_input("Arancel %*", min_value=0.0, max_value=1.0, value=0.05, step=0.01, format="%.3f")
-                iva = st.number_input("IVA %*", min_value=0.0, max_value=1.0, value=0.19, step=0.01, format="%.3f")
-                otros = st.number_input("Otros Impuestos %", min_value=0.0, max_value=1.0, value=0.0, step=0.01, format="%.3f")
-                fuente = st.text_input("Fuente", value="DIAN")
+                hs_code = st.text_input("HS Code*", placeholder="ej. 8518.30.00", key="nuevo_hs_code")
+                descripcion = st.text_input("Descripción*", placeholder="ej. Auriculares, audífonos", key="nueva_desc_hs")
+                arancel = st.number_input("Arancel %*", min_value=0.0, max_value=1.0, value=0.05, step=0.01, format="%.3f", key="nuevo_arancel")
+                iva = st.number_input("IVA %*", min_value=0.0, max_value=1.0, value=0.19, step=0.01, format="%.3f", key="nuevo_iva")
+                otros = st.number_input("Otros Impuestos %", min_value=0.0, max_value=1.0, value=0.0, step=0.01, format="%.3f", key="nuevos_otros")
+                fuente = st.text_input("Fuente", value="DIAN", key="nueva_fuente")
                 
-                if st.form_submit_button("➕ Agregar HS Code", use_container_width=True):
+                if st.form_submit_button("➕ Agregar HS Code", use_container_width=True, key="btn_agregar_hs"):
                     if hs_code and descripcion:
                         nuevo_arancel = {
                             'hs_code': hs_code,
@@ -726,9 +732,9 @@ class CalculadoraImportacionesStreamlit:
                 max_arancel = st.session_state.aranceles['arancel_porcentaje'].max()
                 min_arancel = st.session_state.aranceles['arancel_porcentaje'].min()
                 
-                st.metric("Arancel Promedio", f"{avg_arancel:.1%}")
-                st.metric("Arancel Máximo", f"{max_arancel:.1%}")
-                st.metric("Arancel Mínimo", f"{min_arancel:.1%}")
+                st.metric("Arancel Promedio", f"{avg_arancel:.1%}", key="metric_arancel_prom")
+                st.metric("Arancel Máximo", f"{max_arancel:.1%}", key="metric_arancel_max")
+                st.metric("Arancel Mínimo", f"{min_arancel:.1%}", key="metric_arancel_min")
             
             st.info("💡 **Fuentes recomendadas:**\n- DIAN Colombia\n- Trademap\n- Tariff Download")
 
@@ -749,7 +755,7 @@ class CalculadoraImportacionesStreamlit:
         
         with col1:
             # Botón de cálculo
-            if st.button("🧮 Calcular Landed Cost", type="primary", use_container_width=True):
+            if st.button("🧮 Calcular Landed Cost", type="primary", use_container_width=True, key="btn_calcular_landed"):
                 with st.spinner("Calculando costos de importación..."):
                     self.calcular_landed_cost()
             
@@ -829,10 +835,10 @@ class CalculadoraImportacionesStreamlit:
                 costo_minimo = st.session_state.landed_cost['costo_unitario'].min()
                 total_importacion = st.session_state.landed_cost['costo_total'].sum()
                 
-                st.metric("💰 Costo Unitario Promedio", f"${costo_promedio:,.0f} COP")
-                st.metric("📦 Costo Más Alto", f"${costo_maximo:,.0f} COP")
-                st.metric("💸 Costo Más Bajo", f"${costo_minimo:,.0f} COP")
-                st.metric("🏭 Total Importación", f"${total_importacion:,.0f} COP")
+                st.metric("💰 Costo Unitario Promedio", f"${costo_promedio:,.0f} COP", key="metric_costo_prom")
+                st.metric("📦 Costo Más Alto", f"${costo_maximo:,.0f} COP", key="metric_costo_max")
+                st.metric("💸 Costo Más Bajo", f"${costo_minimo:,.0f} COP", key="metric_costo_min")
+                st.metric("🏭 Total Importación", f"${total_importacion:,.0f} COP", key="metric_total_import")
                 
                 # Distribución de costos
                 st.subheader("📊 Distribución")
@@ -943,7 +949,7 @@ class CalculadoraImportacionesStreamlit:
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            if st.button("📊 Calcular Precios de Venta", type="primary", use_container_width=True):
+            if st.button("📊 Calcular Precios de Venta", type="primary", use_container_width=True, key="btn_calcular_ventas"):
                 with st.spinner("Calculando precios y rentabilidad..."):
                     self.calcular_ventas()
             
@@ -1029,10 +1035,10 @@ class CalculadoraImportacionesStreamlit:
                 mejor_producto = st.session_state.ventas.loc[st.session_state.ventas['rentabilidad'].idxmax()]
                 peor_producto = st.session_state.ventas.loc[st.session_state.ventas['rentabilidad'].idxmin()]
                 
-                st.metric("🎯 Rentabilidad Promedio", f"{rent_promedio:.1%}")
-                st.metric("📊 Margen Objetivo", f"{margen_objetivo:.1%}")
-                st.metric("🏆 Mejor Producto", f"{mejor_producto['rentabilidad']:.1%}")
-                st.metric("📉 Peor Producto", f"{peor_producto['rentabilidad']:.1%}")
+                st.metric("🎯 Rentabilidad Promedio", f"{rent_promedio:.1%}", key="metric_rent_prom")
+                st.metric("📊 Margen Objetivo", f"{margen_objetivo:.1%}", key="metric_margen_obj")
+                st.metric("🏆 Mejor Producto", f"{mejor_producto['rentabilidad']:.1%}", key="metric_mejor_prod")
+                st.metric("📉 Peor Producto", f"{peor_producto['rentabilidad']:.1%}", key="metric_peor_prod")
                 
                 # Productos que no alcanzan margen objetivo
                 productos_bajos = st.session_state.ventas[st.session_state.ventas['rentabilidad'] < margen_objetivo]
@@ -1146,7 +1152,7 @@ class CalculadoraImportacionesStreamlit:
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            if st.button("🔄 Calcular Escenarios", type="primary", use_container_width=True):
+            if st.button("🔄 Calcular Escenarios", type="primary", use_container_width=True, key="btn_calcular_escenarios"):
                 with st.spinner("Analizando escenarios..."):
                     self.calcular_escenarios()
             
@@ -1202,11 +1208,11 @@ class CalculadoraImportacionesStreamlit:
                 
                 col_risk1, col_risk2, col_risk3 = st.columns(3)
                 with col_risk1:
-                    st.metric("🟢 Mejor Caso", f"{optimista_rent:.1%}", f"+{(optimista_rent-base_rent):.1%}")
+                    st.metric("🟢 Mejor Caso", f"{optimista_rent:.1%}", f"+{(optimista_rent-base_rent):.1%}", key="metric_mejor_caso")
                 with col_risk2:
-                    st.metric("🟡 Caso Base", f"{base_rent:.1%}")
+                    st.metric("🟡 Caso Base", f"{base_rent:.1%}", key="metric_caso_base")
                 with col_risk3:
-                    st.metric("🔴 Peor Caso", f"{pesimista_rent:.1%}", f"{(pesimista_rent-base_rent):.1%}")
+                    st.metric("🔴 Peor Caso", f"{pesimista_rent:.1%}", f"{(pesimista_rent-base_rent):.1%}", key="metric_peor_caso")
                 
             else:
                 st.info("👆 Haz clic para calcular los escenarios")
@@ -1328,22 +1334,25 @@ class CalculadoraImportacionesStreamlit:
         
         with col1:
             total_skus = len(st.session_state.productos)
-            st.metric("📦 SKUs", total_skus)
+            st.metric("📦 SKUs", total_skus, key="dashboard_skus")
             
         with col2:
-            total_unidades = st.session_state.productos['cantidad'].sum()
-            st.metric("🔄 Unidades", f"{total_unidades:,}")
+            total_unidades = st.session_state.productos['cantidad'].sum() if not st.session_state.productos.empty else 0
+            st.metric("🔄 Unidades", f"{total_unidades:,}", key="dashboard_unidades")
             
         with col3:
-            inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
-            st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD")
+            if not st.session_state.productos.empty:
+                inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
+                st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD", key="dashboard_inversion")
+            else:
+                st.metric("💰 Inversión Total", "$0 USD", key="dashboard_inversion_zero")
             
         with col4:
             if not st.session_state.ventas.empty:
                 rent_promedio = st.session_state.ventas['rentabilidad'].mean()
-                st.metric("📈 Rentabilidad Promedio", f"{rent_promedio:.1%}")
+                st.metric("📈 Rentabilidad Promedio", f"{rent_promedio:.1%}", key="dashboard_rentabilidad")
             else:
-                st.metric("📈 Rentabilidad", "Por calcular")
+                st.metric("📈 Rentabilidad", "Por calcular", key="dashboard_rentabilidad_pendiente")
         
         # Layout principal
         col_left, col_right = st.columns([2, 1])
@@ -1409,7 +1418,7 @@ class CalculadoraImportacionesStreamlit:
             
             # Estado del análisis
             progreso = self.calcular_progreso()
-            st.metric("📈 Progreso del Análisis", f"{progreso}%")
+            st.metric("📈 Progreso del Análisis", f"{progreso}%", key="dashboard_progreso")
             
             # Alertas importantes
             st.subheader("🚨 Alertas Importantes")
@@ -1453,7 +1462,7 @@ class CalculadoraImportacionesStreamlit:
                 }
                 
                 for kpi, valor in kpis.items():
-                    st.metric(kpi, valor)
+                    st.metric(kpi, valor, key=f"kpi_{kpi}")
 
     def pagina_exportar(self):
         """Página de exportación de datos"""
@@ -1480,38 +1489,41 @@ class CalculadoraImportacionesStreamlit:
                         data=csv,
                         file_name=f"{nombre.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.csv",
                         mime="text/csv",
-                        use_container_width=True
+                        use_container_width=True,
+                        key=f"btn_export_{nombre}"
                     )
                 else:
                     st.button(
                         f"📥 {nombre} (No disponible)",
                         disabled=True,
-                        use_container_width=True
+                        use_container_width=True,
+                        key=f"btn_disabled_{nombre}"
                     )
             
             # Exportar parámetros
-            if st.button("⚙️ Exportar Parámetros como JSON", use_container_width=True):
+            if st.button("⚙️ Exportar Parámetros como JSON", use_container_width=True, key="btn_export_parametros"):
                 parametros_json = json.dumps(st.session_state.parametros, indent=2)
                 st.download_button(
                     label="📥 Descargar Parámetros",
                     data=parametros_json,
                     file_name=f"parametros_{datetime.now().strftime('%Y%m%d')}.json",
-                    mime="application/json"
+                    mime="application/json",
+                    key="btn_download_parametros"
                 )
 
         with col2:
             st.subheader("📋 Reportes Ejecutivos")
             
-            if st.button("📄 Generar Reporte Completo PDF", use_container_width=True):
+            if st.button("📄 Generar Reporte Completo PDF", use_container_width=True, key="btn_reporte_completo"):
                 self.generar_reporte_completo()
             
-            if st.button("📊 Reporte de Rentabilidad", use_container_width=True):
+            if st.button("📊 Reporte de Rentabilidad", use_container_width=True, key="btn_reporte_rentabilidad"):
                 self.generar_reporte_rentabilidad()
             
             st.subheader("⚙️ Gestión de Datos")
             
             # Backup completo
-            if st.button("💾 Crear Backup Completo", use_container_width=True, type="primary"):
+            if st.button("💾 Crear Backup Completo", use_container_width=True, type="primary", key="btn_backup"):
                 self.crear_backup_completo()
             
             # Cargar datos
@@ -1523,13 +1535,13 @@ class CalculadoraImportacionesStreamlit:
             )
             
             if archivo_cargado is not None:
-                if st.button("🔄 Cargar Datos", use_container_width=True):
+                if st.button("🔄 Cargar Datos", use_container_width=True, key="btn_cargar_datos"):
                     self.cargar_datos_desde_archivo(archivo_cargado)
             
             st.subheader("🔧 Utilidades")
             
-            if st.button("🔄 Reiniciar Todos los Datos", use_container_width=True):
-                if st.checkbox("⚠️ Confirmar reinicio completo"):
+            if st.button("🔄 Reiniciar Todos los Datos", use_container_width=True, key="btn_reiniciar_todo"):
+                if st.checkbox("⚠️ Confirmar reinicio completo", key="confirmar_reinicio"):
                     self.inicializar_datos()
                     st.success("✅ Todos los datos han sido reiniciados")
                     st.rerun()
@@ -1544,7 +1556,8 @@ class CalculadoraImportacionesStreamlit:
             data=reporte.encode('utf-8'),
             file_name=f"reporte_importaciones_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
             mime="text/plain",
-            use_container_width=True
+            use_container_width=True,
+            key="btn_descargar_reporte"
         )
         
         # Mostrar preview
@@ -1656,7 +1669,8 @@ RESUMEN POR PRODUCTO:
             data=reporte.encode('utf-8'),
             file_name=f"reporte_rentabilidad_{datetime.now().strftime('%Y%m%d')}.txt",
             mime="text/plain",
-            use_container_width=True
+            use_container_width=True,
+            key="btn_descargar_rentabilidad"
         )
 
     def crear_backup_completo(self):
@@ -1677,7 +1691,8 @@ RESUMEN POR PRODUCTO:
             data=json.dumps(backup_data, indent=2, ensure_ascii=False),
             file_name=f"backup_calculadora_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
             mime="application/json",
-            use_container_width=True
+            use_container_width=True,
+            key="btn_descargar_backup"
         )
 
     def cargar_datos_desde_archivo(self, archivo):
@@ -1719,7 +1734,6 @@ RESUMEN POR PRODUCTO:
                         self.calcular_escenarios()
             
             st.session_state.calculos_realizados = True
-            st.success("✅ Todos los cálculos han sido actualizados")
             
         except Exception as e:
             st.error(f"Error en el recálculo: {str(e)}")
@@ -1732,13 +1746,6 @@ def main():
     except Exception as e:
         st.error(f"Error crítico en la aplicación: {str(e)}")
         st.info("Por favor, recargue la página o reinicie la aplicación")
-
-if __name__ == "__main__":
-    main()
-
-def main():
-    calculadora = CalculadoraImportacionesStreamlit()
-    calculadora.ejecutar_aplicacion()
 
 if __name__ == "__main__":
     main()
