@@ -1,4 +1,4 @@
-# app.py - VERSIÓN CORREGIDA Y OPTIMIZADA PARA STREAMLIT CLOUD
+# app.py - VERSIÓN CORREGIDA SIN PARÁMETRO KEY EN METRIC
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -654,10 +654,10 @@ class CalculadoraImportacionesStreamlit:
                 inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
                 peso_total = (st.session_state.productos['cantidad'] * st.session_state.productos['peso_unitario_kg']).sum()
                 
-                st.metric("Total SKUs", total_skus, key="metric_skus")
-                st.metric("Total Unidades", f"{total_unidades:,}", key="metric_unidades")
-                st.metric("Inversión Total", f"${inversion_total:,.0f} USD", key="metric_inversion")
-                st.metric("Peso Total", f"{peso_total:,.1f} kg", key="metric_peso")
+                st.metric("Total SKUs", total_skus)
+                st.metric("Total Unidades", f"{total_unidades:,}")
+                st.metric("Inversión Total", f"${inversion_total:,.0f} USD")
+                st.metric("Peso Total", f"{peso_total:,.1f} kg")
             else:
                 st.info("No hay productos registrados")
 
@@ -732,9 +732,9 @@ class CalculadoraImportacionesStreamlit:
                 max_arancel = st.session_state.aranceles['arancel_porcentaje'].max()
                 min_arancel = st.session_state.aranceles['arancel_porcentaje'].min()
                 
-                st.metric("Arancel Promedio", f"{avg_arancel:.1%}", key="metric_arancel_prom")
-                st.metric("Arancel Máximo", f"{max_arancel:.1%}", key="metric_arancel_max")
-                st.metric("Arancel Mínimo", f"{min_arancel:.1%}", key="metric_arancel_min")
+                st.metric("Arancel Promedio", f"{avg_arancel:.1%}")
+                st.metric("Arancel Máximo", f"{max_arancel:.1%}")
+                st.metric("Arancel Mínimo", f"{min_arancel:.1%}")
             
             st.info("💡 **Fuentes recomendadas:**\n- DIAN Colombia\n- Trademap\n- Tariff Download")
 
@@ -835,10 +835,10 @@ class CalculadoraImportacionesStreamlit:
                 costo_minimo = st.session_state.landed_cost['costo_unitario'].min()
                 total_importacion = st.session_state.landed_cost['costo_total'].sum()
                 
-                st.metric("💰 Costo Unitario Promedio", f"${costo_promedio:,.0f} COP", key="metric_costo_prom")
-                st.metric("📦 Costo Más Alto", f"${costo_maximo:,.0f} COP", key="metric_costo_max")
-                st.metric("💸 Costo Más Bajo", f"${costo_minimo:,.0f} COP", key="metric_costo_min")
-                st.metric("🏭 Total Importación", f"${total_importacion:,.0f} COP", key="metric_total_import")
+                st.metric("💰 Costo Unitario Promedio", f"${costo_promedio:,.0f} COP")
+                st.metric("📦 Costo Más Alto", f"${costo_maximo:,.0f} COP")
+                st.metric("💸 Costo Más Bajo", f"${costo_minimo:,.0f} COP")
+                st.metric("🏭 Total Importación", f"${total_importacion:,.0f} COP")
                 
                 # Distribución de costos
                 st.subheader("📊 Distribución")
@@ -1035,10 +1035,10 @@ class CalculadoraImportacionesStreamlit:
                 mejor_producto = st.session_state.ventas.loc[st.session_state.ventas['rentabilidad'].idxmax()]
                 peor_producto = st.session_state.ventas.loc[st.session_state.ventas['rentabilidad'].idxmin()]
                 
-                st.metric("🎯 Rentabilidad Promedio", f"{rent_promedio:.1%}", key="metric_rent_prom")
-                st.metric("📊 Margen Objetivo", f"{margen_objetivo:.1%}", key="metric_margen_obj")
-                st.metric("🏆 Mejor Producto", f"{mejor_producto['rentabilidad']:.1%}", key="metric_mejor_prod")
-                st.metric("📉 Peor Producto", f"{peor_producto['rentabilidad']:.1%}", key="metric_peor_prod")
+                st.metric("🎯 Rentabilidad Promedio", f"{rent_promedio:.1%}")
+                st.metric("📊 Margen Objetivo", f"{margen_objetivo:.1%}")
+                st.metric("🏆 Mejor Producto", f"{mejor_producto['rentabilidad']:.1%}")
+                st.metric("📉 Peor Producto", f"{peor_producto['rentabilidad']:.1%}")
                 
                 # Productos que no alcanzan margen objetivo
                 productos_bajos = st.session_state.ventas[st.session_state.ventas['rentabilidad'] < margen_objetivo]
@@ -1208,11 +1208,11 @@ class CalculadoraImportacionesStreamlit:
                 
                 col_risk1, col_risk2, col_risk3 = st.columns(3)
                 with col_risk1:
-                    st.metric("🟢 Mejor Caso", f"{optimista_rent:.1%}", f"+{(optimista_rent-base_rent):.1%}", key="metric_mejor_caso")
+                    st.metric("🟢 Mejor Caso", f"{optimista_rent:.1%}", f"+{(optimista_rent-base_rent):.1%}")
                 with col_risk2:
-                    st.metric("🟡 Caso Base", f"{base_rent:.1%}", key="metric_caso_base")
+                    st.metric("🟡 Caso Base", f"{base_rent:.1%}")
                 with col_risk3:
-                    st.metric("🔴 Peor Caso", f"{pesimista_rent:.1%}", f"{(pesimista_rent-base_rent):.1%}", key="metric_peor_caso")
+                    st.metric("🔴 Peor Caso", f"{pesimista_rent:.1%}", f"{(pesimista_rent-base_rent):.1%}")
                 
             else:
                 st.info("👆 Haz clic para calcular los escenarios")
@@ -1334,25 +1334,25 @@ class CalculadoraImportacionesStreamlit:
         
         with col1:
             total_skus = len(st.session_state.productos)
-            st.metric("📦 SKUs", total_skus, key="dashboard_skus")
+            st.metric("📦 SKUs", total_skus)
             
         with col2:
             total_unidades = st.session_state.productos['cantidad'].sum() if not st.session_state.productos.empty else 0
-            st.metric("🔄 Unidades", f"{total_unidades:,}", key="dashboard_unidades")
+            st.metric("🔄 Unidades", f"{total_unidades:,}")
             
         with col3:
             if not st.session_state.productos.empty:
                 inversion_total = (st.session_state.productos['cantidad'] * st.session_state.productos['precio_unitario_usd']).sum()
-                st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD", key="dashboard_inversion")
+                st.metric("💰 Inversión Total", f"${inversion_total:,.0f} USD")
             else:
-                st.metric("💰 Inversión Total", "$0 USD", key="dashboard_inversion_zero")
+                st.metric("💰 Inversión Total", "$0 USD")
             
         with col4:
             if not st.session_state.ventas.empty:
                 rent_promedio = st.session_state.ventas['rentabilidad'].mean()
-                st.metric("📈 Rentabilidad Promedio", f"{rent_promedio:.1%}", key="dashboard_rentabilidad")
+                st.metric("📈 Rentabilidad Promedio", f"{rent_promedio:.1%}")
             else:
-                st.metric("📈 Rentabilidad", "Por calcular", key="dashboard_rentabilidad_pendiente")
+                st.metric("📈 Rentabilidad", "Por calcular")
         
         # Layout principal
         col_left, col_right = st.columns([2, 1])
@@ -1418,7 +1418,7 @@ class CalculadoraImportacionesStreamlit:
             
             # Estado del análisis
             progreso = self.calcular_progreso()
-            st.metric("📈 Progreso del Análisis", f"{progreso}%", key="dashboard_progreso")
+            st.metric("📈 Progreso del Análisis", f"{progreso}%")
             
             # Alertas importantes
             st.subheader("🚨 Alertas Importantes")
@@ -1462,7 +1462,7 @@ class CalculadoraImportacionesStreamlit:
                 }
                 
                 for kpi, valor in kpis.items():
-                    st.metric(kpi, valor, key=f"kpi_{kpi}")
+                    st.metric(kpi, valor)
 
     def pagina_exportar(self):
         """Página de exportación de datos"""
