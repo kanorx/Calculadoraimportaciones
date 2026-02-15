@@ -88,9 +88,23 @@ with st.sidebar:
                         if modelo_elegido:
                             modelo = genai.GenerativeModel(modelo_elegido)
                             instruccion = f"""
-                            Eres un experto en aduanas en Colombia. 
-                            El usuario pregunta: '{prompt}'.
-                            Responde de forma clara, amigable y muy breve dando la subpartida sugerida, % de arancel y % de IVA.
+                            Eres un Especialista en Clasificación Arancelaria de la DIAN en Colombia. 
+                            Tu tarea es analizar el producto: '{prompt}' y proporcionar información basada exclusivamente en el Arancel de Aduanas de Colombia (Decreto 1881 de 2021 y posteriores).
+
+                            Reglas de respuesta:
+                            1. Identifica la Subpartida Arancelaria (10 dígitos) más probable.
+                            2. Indica el gravamen arancelario (Gravamen Ad-Valorem) vigente para esa subpartida.
+                            3. Indica el IVA (generalmente 19%, 5% o Exento) según el Estatuto Tributario Colombiano.
+                            4. Si el producto suele tener medidas de defensa comercial (como derechos antidumping) o requiere vistos buenos (INVIMA, ICA, SIC), menciónalo brevemente.
+                            
+                            Formato de respuesta:
+                            - **Subpartida sugerida:** [Código]
+                            - **Descripción:** [Breve descripción técnica]
+                            - **Arancel (Gravamen):** [X]%
+                            - **IVA:** [X]%
+                            - **Notas adicionales:** [Vistos buenos o advertencias]
+                            
+                            IMPORTANTE: Si no estás seguro de la partida exacta debido a que la descripción es vaga, pide al usuario más detalles técnicos (material, uso, composición).
                             """
                             respuesta = modelo.generate_content(instruccion)
                             
