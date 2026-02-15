@@ -9,7 +9,7 @@ import google.generativeai as genai
 # 0. CONFIGURACIÓN SEGURA DE LA API DE IA
 # ==========================================
 try:
-    # Streamlit busca automáticamente la clave en .streamlit/secrets.toml
+    # Streamlit busca automáticamente la clave en .streamlit/secrets.toml o en la nube
     API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=API_KEY)
     IA_CONFIGURADA = True
@@ -83,7 +83,6 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
 
-# Agregamos la pestaña número 6 para la IA
 tab1, tab2, tab3, tab_masiva, tab_comparador, tab_ia = st.tabs([
     "✈️ Avión", "🚢 Barco", "🛒 AliExpress", "📁 Carga Masiva", "📊 Comparador", "🤖 IA Aduanera"
 ])
@@ -92,6 +91,7 @@ base_inputs = lambda: { "Precio_USD": 0.0, "TRM": TRM_HOY, "Cantidad": 1, "Flete
 
 # --- PESTAÑA 1: AVION ---
 with tab1:
+    st.subheader("✈️ Simulación de Importación por Avión")
     nombre_prod_av = st.text_input("Nombre del Producto", value="Esponja", key="nom_av")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -112,9 +112,14 @@ with tab1:
         inputs = base_inputs()
         inputs.update({"Precio_USD": precio_usd_av, "TRM": trm_av, "Cantidad": cantidad_av, "Flete_USD": flete_usd_av, "Arancel_pct": arancel_pct_av, "IVA_pct": iva_pct_av, "Tarifa_Admin_COP": tarifa_admin_av, "Precio_Venta_ML": precio_ml_av, "Comision_ML_pct": comision_ml_av})
         guardar_simulacion(nombre_prod_av, "Avión", inputs, costo_u, ing_n, viab)
+        res1, res2, res3 = st.columns(3)
+        res1.metric("Costo Unitario", f"${costo_u:,.2f}")
+        res2.metric("Ingreso Neto ML", f"${ing_n:,.2f}")
+        res3.metric("Ratio Viabilidad", f"{viab:,.2f}x")
 
 # --- PESTAÑA 2: BARCO ---
 with tab2:
+    st.subheader("🚢 Simulación de Importación por Barco")
     nombre_prod_ba = st.text_input("Nombre del Producto", value="Lámpara RGB", key="nom_ba")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -139,9 +144,15 @@ with tab2:
         inputs = base_inputs()
         inputs.update({"Precio_USD": precio_usd_ba, "TRM": trm_ba, "Cantidad": cantidad_ba, "Flete_USD": envio_origen_ba, "Comision_TC_pct": comision_tc_ba, "Alto_cm": alto_ba, "Ancho_cm": ancho_ba, "Largo_cm": largo_ba, "Cajas": cajas_ba, "Valor_CBM_COP": cbm_agente_ba, "Flete_Nacional_COP": flete_nacional_ba, "Precio_Venta_ML": precio_ml_ba, "Comision_ML_pct": comision_ml_ba})
         guardar_simulacion(nombre_prod_ba, "Barco", inputs, costo_u, ing_n, viab)
+        st.info(f"📐 Volumen calculado: **{vol:,.4f} m³**")
+        res1, res2, res3 = st.columns(3)
+        res1.metric("Costo Unitario", f"${costo_u:,.2f}")
+        res2.metric("Ingreso Neto ML", f"${ing_n:,.2f}")
+        res3.metric("Ratio Viabilidad", f"{viab:,.2f}x")
 
 # --- PESTAÑA 3: ALIEXPRESS ---
 with tab3:
+    st.subheader("🛒 Simulación B2C AliExpress")
     nombre_prod_ali = st.text_input("Nombre del Producto", value="Audífonos", key="nom_ali")
     col1, col2 = st.columns(2)
     with col1:
@@ -156,12 +167,17 @@ with tab3:
         inputs = base_inputs()
         inputs.update({"Costo_Pedido_COP": costo_ped_ali, "Cantidad": cant_ali, "Precio_Venta_ML": precio_ml_ali, "Comision_ML_pct": comision_ml_ali})
         guardar_simulacion(nombre_prod_ali, "AliExpress", inputs, costo_u, ing_n, viab)
+        res1, res2, res3 = st.columns(3)
+        res1.metric("Costo Unitario", f"${costo_u:,.2f}")
+        res2.metric("Ingreso Neto ML", f"${ing_n:,.2f}")
+        res3.metric("Ratio Viabilidad", f"{viab:,.2f}x")
 
 # --- PESTAÑA 4: CARGA MASIVA ---
 with tab_masiva:
+    st.subheader("📁 Procesar Reporte Excel")
     st.info("Sube la plantilla Excel descargada en la pestaña 'Comparador' para recalcular lotes enteros.")
     archivo_subido = st.file_uploader("Elige tu plantilla Excel (.xlsx)", type=["xlsx"])
-    if archivo_subido is not None and st.button("Procesar Archivo Masivo"):
+    if archivo_subido is not None and st.button("Procesar Archivo Masivo", type="primary"):
         df = pd.read_excel(archivo_subido).fillna(0)
         for _, row in df.iterrows():
             metodo = str(row.get('Método', ''))
@@ -177,47 +193,77 @@ with tab_masiva:
                 inputs_row = {k: row[k] for k in base_inputs().keys() if k in row}
                 guardar_simulacion(nombre, metodo, inputs_row, c_u, i_n, v)
             except: pass
+        st.success("¡Archivo importado con éxito!")
 
 # --- PESTAÑA 5: COMPARADOR Y EXPORTAR ---
 with tab_comparador:
+    st.subheader("📊 Tu Portafolio de Simulaciones")
     if len(st.session_state['historial']) > 0:
         df_historial = pd.DataFrame(st.session_state['historial'])
         st.dataframe(df_historial[["Producto", "Método", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"]], use_container_width=True)
+        
+        fig = px.bar(df_historial, x="Producto", y="Viabilidad (Res)", color="Método", 
+                     title="Comparación de Viabilidad por Producto", text_auto='.2f')
+        fig.add_hline(y=1.5, line_dash="dot", annotation_text="Meta Mínima (1.5x)", annotation_position="bottom right")
+        st.plotly_chart(fig, use_container_width=True)
         
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df_historial.to_excel(writer, index=False, sheet_name='Plantilla_Importacion')
         
-        st.download_button("📥 Descargar Plantilla Excel", data=buffer.getvalue(), file_name="Plantilla_Calculadora.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
-        if st.button("Limpiar Historial"): st.session_state['historial'] = []; st.rerun()
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            st.download_button("📥 Descargar Plantilla Excel", data=buffer.getvalue(), file_name="Plantilla_Calculadora.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+        with col_btn2:
+            if st.button("Limpiar Historial", use_container_width=True): 
+                st.session_state['historial'] = []
+                st.rerun()
     else: st.info("Aún no has guardado simulaciones.")
 
 # --- PESTAÑA 6: ASISTENTE DE IA ADUANERA ---
 with tab_ia:
     st.subheader("🤖 Asistente Experto en Aduanas")
     if not IA_CONFIGURADA:
-        st.error("⚠️ La IA no está configurada. Crea el archivo `.streamlit/secrets.toml` con tu GEMINI_API_KEY para habilitar esta función.")
+        st.error("⚠️ La IA no está configurada. Verifica que el secreto 'GEMINI_API_KEY' esté en la configuración de la nube.")
     else:
         st.write("Escribe qué producto quieres importar y te daré un estimado de su arancel en Colombia.")
         producto_consulta = st.text_input("Ejemplo: Relojes inteligentes, Ropa de algodón...", key="consulta_ia")
         
         if st.button("Consultar Arancel a la IA", type="primary"):
             if producto_consulta:
-                with st.spinner("Consultando con el experto aduanero..."):
+                with st.spinner("Conectando con la IA de Google..."):
                     try:
-                        modelo = genai.GenerativeModel('gemini-pro')
-                        instruccion = f"""
-                        Eres un experto en aduanas en Colombia. 
-                        Producto a importar: '{producto_consulta}'.
-                        Responde muy breve:
-                        1. Subpartida arancelaria aproximada.
-                        2. % de arancel estimado para Colombia.
-                        3. % de IVA estimado (19% o exento).
-                        Ve directo al grano, sin rodeos.
-                        """
-                        respuesta = modelo.generate_content(instruccion)
-                        st.success("¡Consulta exitosa!")
-                        st.info(respuesta.text)
+                        # Buscamos el mejor modelo de forma automática y dinámica
+                        modelos_disponibles = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                        
+                        modelo_elegido = None
+                        # Preferimos siempre el flash o pro
+                        for m_name in modelos_disponibles:
+                            if 'flash' in m_name or 'pro' in m_name:
+                                modelo_elegido = m_name
+                                break
+                        
+                        # Si no hay flash o pro, tomamos cualquiera que sirva para texto
+                        if not modelo_elegido and len(modelos_disponibles) > 0:
+                            modelo_elegido = modelos_disponibles[0]
+                            
+                        if not modelo_elegido:
+                            st.error("❌ No se encontraron modelos disponibles en tu cuenta.")
+                        else:
+                            modelo = genai.GenerativeModel(modelo_elegido)
+                            instruccion = f"""
+                            Eres un experto en aduanas en Colombia. 
+                            Producto a importar: '{producto_consulta}'.
+                            Responde muy breve:
+                            1. Subpartida arancelaria aproximada.
+                            2. % de arancel estimado para Colombia.
+                            3. % de IVA estimado (19% o exento).
+                            Ve directo al grano, sin rodeos.
+                            """
+                            respuesta = modelo.generate_content(instruccion)
+                            st.success("¡Consulta exitosa!")
+                            st.caption(f"*(Respuesta generada usando el modelo: {modelo_elegido})*")
+                            st.info(respuesta.text)
                     except Exception as e:
                         st.error(f"Error de conexión con la IA: {e}")
             else:
