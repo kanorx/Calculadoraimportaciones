@@ -6,23 +6,21 @@ import io
 import google.generativeai as genai
 
 # ==========================================
-# 0. CONFIGURACIÓN SEGURA DE LA API DE IA
-# ==========================================
-try:
-    # Streamlit busca automáticamente la clave en .streamlit/secrets.toml o en la nube
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
-    IA_CONFIGURADA = True
-except (KeyError, FileNotFoundError):
-    IA_CONFIGURADA = False
-
-# ==========================================
-# 1. CONFIGURACIÓN E HISTORIAL (MEMORIA)
+# 0. CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
 st.set_page_config(page_title="Calculadora Pro", layout="wide", page_icon="📦")
 
+# ==========================================
+# 1. MEMORIA DE LA APP (HISTORIAL Y CHAT)
+# ==========================================
 if 'historial' not in st.session_state:
     st.session_state['historial'] = []
+
+# Nueva memoria para el historial del chat con la IA
+if 'mensajes_chat' not in st.session_state:
+    st.session_state['mensajes_chat'] = [
+        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. Dime qué producto quieres importar y te ayudaré con la subpartida y el arancel estimado."}
+    ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
     fila = {
@@ -33,7 +31,7 @@ def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viab
     st.success(f"✅ '{nombre_producto}' guardado en el portafolio.")
 
 # ==========================================
-# 2. FUNCIÓN PARA OBTENER TRM EN TIEMPO REAL
+# 2. OBTENER TRM
 # ==========================================
 @st.cache_data
 def obtener_trm_colombia():
@@ -46,7 +44,71 @@ def obtener_trm_colombia():
 TRM_HOY = obtener_trm_colombia()
 
 # ==========================================
-# 3. FUNCIONES DE CÁLCULO
+# 3. CONFIGURACIÓN DE LA IA
+# ==========================================
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=API_KEY)
+    IA_CONFIGURADA = True
+except (KeyError, FileNotFoundError):
+    IA_CONFIGURADA = False
+
+# ==========================================
+# 4. ASISTENTE FLOTANTE (SIDEBAR)
+# ==========================================
+with st.sidebar:
+    st.title("🤖 IA Aduanera")
+    
+    if not IA_CONFIGURADA:
+        st.error("⚠️ Falta configurar la API Key en los secretos.")
+    else:
+        # Mostrar el historial de mensajes
+        for msg in st.session_state['mensajes_chat']:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+        
+        # Campo flotante en la parte inferior del sidebar para escribir
+        if prompt := st.chat_input("Escribe tu producto aquí..."):
+            # 1. Guardar y mostrar lo que escribió el usuario
+            st.session_state['mensajes_chat'].append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+                
+            # 2. Consultar a la IA
+            with st.chat_message("assistant"):
+                with st.spinner("Analizando..."):
+                    try:
+                        # Buscar modelo válido
+                        modelo_elegido = None
+                        for m_name in [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]:
+                            if 'flash' in m_name or 'pro' in m_name:
+                                modelo_elegido = m_name
+                                break
+                                
+                        if modelo_elegido:
+                            modelo = genai.GenerativeModel(modelo_elegido)
+                            instruccion = f"""
+                            Eres un experto en aduanas en Colombia. 
+                            El usuario pregunta: '{prompt}'.
+                            Responde de forma clara, amigable y muy breve dando la subpartida sugerida, % de arancel y % de IVA.
+                            """
+                            respuesta = modelo.generate_content(instruccion)
+                            
+                            # Mostrar respuesta
+                            st.markdown(respuesta.text)
+                            # Guardar respuesta en la memoria
+                            st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
+                        else:
+                            st.error("No se encontró un modelo disponible.")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                        
+    if st.button("🗑️ Limpiar Chat", use_container_width=True):
+        st.session_state['mensajes_chat'] = [{"role": "assistant", "content": "Chat reiniciado. ¿En qué más te ayudo?"}]
+        st.rerun()
+
+# ==========================================
+# 5. FUNCIONES MATEMÁTICAS
 # ==========================================
 def calcular_alibaba_avion(precio_usd, trm, cantidad, flete_usd, arancel_pct, iva_pct, tarifa_admin_cop, precio_ml, comision_ml_pct):
     if cantidad <= 0: return 0, 0, 0
@@ -78,13 +140,14 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
     return costo_unitario, ingreso_ml_neto, (ingreso_ml_neto / costo_unitario if costo_unitario > 0 else 0)
 
 # ==========================================
-# 4. INTERFAZ DE USUARIO CON STREAMLIT
+# 6. INTERFAZ PRINCIPAL (DERECHA)
 # ==========================================
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
 
-tab1, tab2, tab3, tab_masiva, tab_comparador, tab_ia = st.tabs([
-    "✈️ Avión", "🚢 Barco", "🛒 AliExpress", "📁 Carga Masiva", "📊 Comparador", "🤖 IA Aduanera"
+# Solo 5 pestañas ahora, la IA ya no está aquí
+tab1, tab2, tab3, tab_masiva, tab_comparador = st.tabs([
+    "✈️ Avión", "🚢 Barco", "🛒 AliExpress", "📁 Carga Masiva", "📊 Comparador"
 ])
 
 base_inputs = lambda: { "Precio_USD": 0.0, "TRM": TRM_HOY, "Cantidad": 1, "Flete_USD": 0.0, "Arancel_pct": 0.0, "IVA_pct": 0.0, "Tarifa_Admin_COP": 0.0, "Comision_TC_pct": 0.0, "Alto_cm": 0.0, "Ancho_cm": 0.0, "Largo_cm": 0.0, "Cajas": 0, "Valor_CBM_COP": 0.0, "Flete_Nacional_COP": 0.0, "Costo_Pedido_COP": 0.0, "Precio_Venta_ML": 0.0, "Comision_ML_pct": 0.24 }
@@ -219,52 +282,3 @@ with tab_comparador:
                 st.session_state['historial'] = []
                 st.rerun()
     else: st.info("Aún no has guardado simulaciones.")
-
-# --- PESTAÑA 6: ASISTENTE DE IA ADUANERA ---
-with tab_ia:
-    st.subheader("🤖 Asistente Experto en Aduanas")
-    if not IA_CONFIGURADA:
-        st.error("⚠️ La IA no está configurada. Verifica que el secreto 'GEMINI_API_KEY' esté en la configuración de la nube.")
-    else:
-        st.write("Escribe qué producto quieres importar y te daré un estimado de su arancel en Colombia.")
-        producto_consulta = st.text_input("Ejemplo: Relojes inteligentes, Ropa de algodón...", key="consulta_ia")
-        
-        if st.button("Consultar Arancel a la IA", type="primary"):
-            if producto_consulta:
-                with st.spinner("Conectando con la IA de Google..."):
-                    try:
-                        # Buscamos el mejor modelo de forma automática y dinámica
-                        modelos_disponibles = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                        
-                        modelo_elegido = None
-                        # Preferimos siempre el flash o pro
-                        for m_name in modelos_disponibles:
-                            if 'flash' in m_name or 'pro' in m_name:
-                                modelo_elegido = m_name
-                                break
-                        
-                        # Si no hay flash o pro, tomamos cualquiera que sirva para texto
-                        if not modelo_elegido and len(modelos_disponibles) > 0:
-                            modelo_elegido = modelos_disponibles[0]
-                            
-                        if not modelo_elegido:
-                            st.error("❌ No se encontraron modelos disponibles en tu cuenta.")
-                        else:
-                            modelo = genai.GenerativeModel(modelo_elegido)
-                            instruccion = f"""
-                            Eres un experto en aduanas en Colombia. 
-                            Producto a importar: '{producto_consulta}'.
-                            Responde muy breve:
-                            1. Subpartida arancelaria aproximada.
-                            2. % de arancel estimado para Colombia.
-                            3. % de IVA estimado (19% o exento).
-                            Ve directo al grano, sin rodeos.
-                            """
-                            respuesta = modelo.generate_content(instruccion)
-                            st.success("¡Consulta exitosa!")
-                            st.caption(f"*(Respuesta generada usando el modelo: {modelo_elegido})*")
-                            st.info(respuesta.text)
-                    except Exception as e:
-                        st.error(f"Error de conexión con la IA: {e}")
-            else:
-                st.warning("Escribe un producto primero.")
