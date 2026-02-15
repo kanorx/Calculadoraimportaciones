@@ -5,6 +5,10 @@ import requests
 import io
 import google.generativeai as genai
 
+# Nuevas importaciones para darle color y fórmulas al Excel
+from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.utils import get_column_letter
+
 # ==========================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
@@ -147,7 +151,6 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
 
-# Solo 5 pestañas ahora, la IA ya no está aquí
 tab1, tab2, tab3, tab_masiva, tab_comparador = st.tabs([
     "✈️ Avión", "🚢 Barco", "🛒 AliExpress", "📁 Carga Masiva", "📊 Comparador"
 ])
@@ -240,9 +243,10 @@ with tab3:
 # --- PESTAÑA 4: CARGA MASIVA ---
 with tab_masiva:
     st.subheader("📁 Procesar Reporte Excel")
-    st.info("Sube la plantilla Excel descargada en la pestaña 'Comparador' para recalcular lotes enteros.")
+    st.info("Sube la plantilla Excel descargada en la pestaña 'Comparador'. Se recalcularán los datos internamente.")
     archivo_subido = st.file_uploader("Elige tu plantilla Excel (.xlsx)", type=["xlsx"])
     if archivo_subido is not None and st.button("Procesar Archivo Masivo", type="primary"):
+        # Pandas ignora las fórmulas en texto y procesa solo las columnas de entrada puras.
         df = pd.read_excel(archivo_subido).fillna(0)
         for _, row in df.iterrows():
             metodo = str(row.get('Método', ''))
@@ -260,25 +264,94 @@ with tab_masiva:
             except: pass
         st.success("¡Archivo importado con éxito!")
 
-# --- PESTAÑA 5: COMPARADOR Y EXPORTAR ---
+# --- PESTAÑA 5: COMPARADOR Y EXPORTAR DINÁMICO ---
 with tab_comparador:
     st.subheader("📊 Tu Portafolio de Simulaciones")
     if len(st.session_state['historial']) > 0:
-        df_historial = pd.DataFrame(st.session_state['historial'])
-        st.dataframe(df_historial[["Producto", "Método", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"]], use_container_width=True)
         
-        fig = px.bar(df_historial, x="Producto", y="Viabilidad (Res)", color="Método", 
+        # Orden estricto de columnas (Para que la A sea 'Producto', B sea 'Método', etc.)
+        columnas_ordenadas = [
+            "Producto", "Método", "Precio_USD", "TRM", "Cantidad", "Flete_USD", 
+            "Arancel_pct", "IVA_pct", "Tarifa_Admin_COP", "Comision_TC_pct", 
+            "Alto_cm", "Ancho_cm", "Largo_cm", "Cajas", "Valor_CBM_COP", 
+            "Flete_Nacional_COP", "Costo_Pedido_COP", "Precio_Venta_ML", 
+            "Comision_ML_pct", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"
+        ]
+        
+        df_historial = pd.DataFrame(st.session_state['historial'])
+        
+        # Completar columnas faltantes con 0 para evitar errores si solo se calculó AliExpress
+        for col in columnas_ordenadas:
+            if col not in df_historial.columns:
+                df_historial[col] = 0.0
+                
+        df_export = df_historial[columnas_ordenadas]
+        
+        # Gráficos e Interfaz visual de Streamlit
+        st.dataframe(df_export[["Producto", "Método", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"]], use_container_width=True)
+        
+        fig = px.bar(df_export, x="Producto", y="Viabilidad (Res)", color="Método", 
                      title="Comparación de Viabilidad por Producto", text_auto='.2f')
         fig.add_hline(y=1.5, line_dash="dot", annotation_text="Meta Mínima (1.5x)", annotation_position="bottom right")
         st.plotly_chart(fig, use_container_width=True)
         
+        # --- LÓGICA DE CREACIÓN DEL EXCEL AVANZADO CON OPENPYXL ---
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            df_historial.to_excel(writer, index=False, sheet_name='Plantilla_Importacion')
+            df_export.to_excel(writer, index=False, sheet_name='Plantilla_Importacion')
+            workbook = writer.book
+            worksheet = writer.sheets['Plantilla_Importacion']
+            
+            # Estilos de celda
+            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid") # Azul Oscuro
+            header_font = Font(color="FFFFFF", bold=True)
+            res_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") # Verde Claro
+            res_font = Font(bold=True)
+            
+            # 1. Aplicar estilo a la cabecera (Primera fila)
+            for cell in worksheet[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+            # 2. Ajustar el ancho de cada columna para que nada quede angosto
+            for col in worksheet.columns:
+                max_length = 0
+                col_letter = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                worksheet.column_dimensions[col_letter].width = max_length + 3
+            
+            # 3. Insertar las fórmulas vivas en las columnas de resultados
+            # Las columnas son: Costo (T), Ingreso (U), Viabilidad (V). La data empieza en la fila 2.
+            for row in range(2, len(df_export) + 2):
+                # Fórmula condicional anidada de Excel que calcula exactamente la misma matemática
+                formula_costo = f'=IF(B{row}="Avión", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+G{row})*(1+H{row})+I{row})/IF(E{row}>0,E{row},1), IF(B{row}="Barco", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+J{row})+((K{row}*L{row}*M{row}/1000000)*N{row}*O{row})+P{row})/IF(E{row}>0,E{row},1), IF(B{row}="AliExpress", Q{row}/IF(E{row}>0,E{row},1), 0)))'
+                
+                worksheet[f'T{row}'] = formula_costo
+                worksheet[f'T{row}'].fill = res_fill
+                worksheet[f'T{row}'].font = res_font
+                worksheet[f'T{row}'].number_format = '#,##0.00'
+                
+                worksheet[f'U{row}'] = f'=R{row}*(1-S{row})'
+                worksheet[f'U{row}'].fill = res_fill
+                worksheet[f'U{row}'].font = res_font
+                worksheet[f'U{row}'].number_format = '#,##0.00'
+                
+                worksheet[f'V{row}'] = f'=IF(T{row}>0, U{row}/T{row}, 0)'
+                worksheet[f'V{row}'].fill = res_fill
+                worksheet[f'V{row}'].font = res_font
+                worksheet[f'V{row}'].number_format = '0.00'
+
+        # --- FIN LÓGICA DE EXCEL ---
         
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            st.download_button("📥 Descargar Plantilla Excel", data=buffer.getvalue(), file_name="Plantilla_Calculadora.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
+            st.download_button("📥 Descargar Plantilla Excel Inteligente", data=buffer.getvalue(), file_name="Plantilla_Calculadora.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
         with col_btn2:
             if st.button("Limpiar Historial", use_container_width=True): 
                 st.session_state['historial'] = []
