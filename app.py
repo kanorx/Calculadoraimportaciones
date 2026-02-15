@@ -57,7 +57,7 @@ except (KeyError, FileNotFoundError):
 # 4. ASISTENTE FLOTANTE (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    st.title("🤖 IA Aduanera")
+    st.title("🤖 IA Aduanera (Recuerda que estoy en Fase De Pruebas)")
     
     if not IA_CONFIGURADA:
         st.error("⚠️ Falta configurar la API Key en los secretos.")
