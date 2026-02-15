@@ -205,7 +205,7 @@ with tab_ia:
             if producto_consulta:
                 with st.spinner("Consultando con el experto aduanero..."):
                     try:
-                        modelo = genai.GenerativeModel('gemini-1.5-flash')
+                        modelo = genai.GenerativeModel('gemini-pro')
                         instruccion = f"""
                         Eres un experto en aduanas en Colombia. 
                         Producto a importar: '{producto_consulta}'.
