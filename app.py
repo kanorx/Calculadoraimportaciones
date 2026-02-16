@@ -90,7 +90,7 @@ with st.sidebar:
                         2. % de Gravamen Arancelario.
                         3. % de IVA.
                         No inventes datos. Si no estás seguro, pide más detalles técnicos.
-                        🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
+                        🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial en este link https://muisca.dian.gov.co/WebArancel/DefConsultaGeneralNomenclaturas.faces.
                         """
                         respuesta = modelo.generate_content(instruccion)
                         st.markdown(respuesta.text)
