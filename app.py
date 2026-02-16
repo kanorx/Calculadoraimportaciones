@@ -78,7 +78,7 @@ with st.sidebar:
                 with st.spinner("Consultando con Gemini 2 Flash..."):
                     try:
                         # 1. Configurar exclusivamente el modelo gemini-2.0-flash
-                        modelo = genai.GenerativeModel("gemini-2.0-flash")
+                        modelo = genai.GenerativeModel("gemini-1.5-flash")
                         
                         # 2. Preparar la instrucción
                         instruccion = f"""
