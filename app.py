@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import io
 import json
+import plotly.express as px
 
 # Librerías para diseño avanzado de Excel
 from openpyxl.styles import PatternFill, Font, Alignment
@@ -21,7 +22,7 @@ if 'historial' not in st.session_state:
 
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
-        {"role": "assistant", "content": "¡Hola! He restaurado todas tus funciones y conectado el nuevo motor sin límites. Dime qué producto quieres consultar."}
+        {"role": "assistant", "content": "¡Hola! He restaurado todas tus gráficas y el motor de IA sin límites. ¿Qué producto consultamos hoy?"}
     ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
@@ -111,7 +112,6 @@ with st.sidebar:
     if not IA_CONFIGURADA:
         st.error("⚠️ Falta configurar la OPENROUTER_API_KEY en los secretos.")
     else:
-        # Menú para que elijas entre el gratis y el de $1 dólar
         opcion_ia = st.radio(
             "Selecciona tu modelo preferido:",
             ["Llama 3.3 70B (Gratis)", "Gemini 2.5 Flash Lite (Pago)"]
@@ -140,7 +140,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 5. FUNCIONES MATEMÁTICAS ORIGINALES
+# 5. FUNCIONES MATEMÁTICAS
 # ==========================================
 def calcular_alibaba_avion(precio_usd, trm, cantidad, flete_usd, arancel_pct, iva_pct, tarifa_admin_cop, precio_ml, comision_ml_pct):
     if cantidad <= 0: return 0, 0, 0
@@ -172,7 +172,7 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
     return costo_unitario, ingreso_ml_neto, (ingreso_ml_neto / costo_unitario if costo_unitario > 0 else 0)
 
 # ==========================================
-# 6. INTERFAZ PRINCIPAL ORIGINAL
+# 6. INTERFAZ PRINCIPAL
 # ==========================================
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
@@ -288,7 +288,7 @@ with tab_masiva:
             except: pass
         st.success("¡Importación masiva completada!")
 
-# --- PESTAÑA 5: COMPARADOR Y EXCEL PRO ---
+# --- PESTAÑA 5: COMPARADOR, GRÁFICAS Y EXCEL PRO ---
 with tab_comparador:
     st.subheader("📊 Portafolio y Exportación Avanzada")
     if len(st.session_state['historial']) > 0:
@@ -305,22 +305,60 @@ with tab_comparador:
             if col not in df_historial.columns: df_historial[col] = 0.0
         
         df_export = df_historial[columnas_ordenadas]
+        
+        # 1. Mostrar la tabla simplificada
         st.dataframe(df_export[["Producto", "Método", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"]], use_container_width=True)
         
-        # --- LÓGICA DE EXCEL CON SEMÁFORO Y COLORES ORIGINAL ---
+        # 2. LAS GRÁFICAS DE PLOTLY ESTÁN DE VUELTA 📈
+        st.markdown("---")
+        st.subheader("📈 Análisis Visual de Rentabilidad")
+        
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            # Gráfica de Costo vs Ingreso
+            fig1 = px.bar(
+                df_export, 
+                x='Producto', 
+                y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], 
+                barmode='group',
+                title='Costo vs. Ingreso por Producto',
+                labels={'value': 'Pesos (COP)', 'variable': 'Métrica'},
+                color_discrete_map={'Costo Unitario (Res)': '#EF553B', 'Ingreso ML (Res)': '#00CC96'}
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+            
+        with col_chart2:
+            # Gráfica de Viabilidad (Colores semáforo automáticos)
+            fig2 = px.bar(
+                df_export, 
+                x='Producto', 
+                y='Viabilidad (Res)', 
+                title='Ratio de Viabilidad (Mayor a 1.5 es ideal)',
+                color='Viabilidad (Res)', 
+                color_continuous_scale='RdYlGn',
+                labels={'Viabilidad (Res)': 'Ratio (x)'}
+            )
+            # Agregar línea meta de 1.5
+            fig2.add_hline(y=1.5, line_dash="dot", annotation_text="Meta Rentable", annotation_position="bottom right")
+            st.plotly_chart(fig2, use_container_width=True)
+
+        st.markdown("---")
+
+        # 3. LÓGICA DE EXCEL CON SEMÁFORO Y COLORES
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Simulaciones')
             worksheet = writer.sheets['Simulaciones']
             
-            # 1. Colores de cabecera
+            # Colores de cabecera
             header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
             for cell in worksheet[1]:
                 cell.fill = header_fill
                 cell.font = Font(color="FFFFFF", bold=True)
                 cell.alignment = Alignment(horizontal="center")
 
-            # 2. Ajuste de columnas
+            # Ajuste de columnas
             for col in worksheet.columns:
                 max_length = 0
                 col_letter = col[0].column_letter
@@ -328,7 +366,7 @@ with tab_comparador:
                     if cell.value: max_length = max(max_length, len(str(cell.value)))
                 worksheet.column_dimensions[col_letter].width = max_length + 4
 
-            # 3. Fórmulas Inteligentes
+            # Fórmulas Inteligentes
             for row in range(2, len(df_export) + 2):
                 worksheet[f'T{row}'] = f'=IF(B{row}="Avión", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+G{row})*(1+H{row})+I{row})/IF(E{row}>0,E{row},1), IF(B{row}="Barco", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+J{row})+((K{row}*L{row}*M{row}/1000000)*N{row}*O{row})+P{row})/IF(E{row}>0,E{row},1), IF(B{row}="AliExpress", Q{row}/IF(E{row}>0,E{row},1), 0)))'
                 worksheet[f'U{row}'] = f'=R{row}*(1-S{row})'
@@ -338,7 +376,7 @@ with tab_comparador:
                 worksheet[f'U{row}'].number_format = '"$"#,##0'
                 worksheet[f'V{row}'].number_format = '0.00'
 
-            # 4. Formato Condicional (Semáforo)
+            # Formato Condicional (Semáforo)
             green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
             yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
             red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
@@ -353,4 +391,4 @@ with tab_comparador:
             st.session_state['historial'] = []
             st.rerun()
     else:
-        st.info("Aún no tienes simulaciones guardadas.")
+        st.info("Aún no tienes simulaciones guardadas para mostrar las gráficas.")
