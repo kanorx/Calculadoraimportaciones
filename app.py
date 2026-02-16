@@ -22,7 +22,7 @@ if 'historial' not in st.session_state:
 
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
-        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. Usando Gemini 2 Flash. Dime qué producto quieres consultar."}
+        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. Revisa la lista de modelos disponibles arriba y dime qué producto quieres consultar."}
     ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
@@ -57,14 +57,27 @@ except (KeyError, FileNotFoundError):
     IA_CONFIGURADA = False
 
 # ==========================================
-# 4. ASISTENTE FLOTANTE (SIDEBAR) - SOLO GEMINI 2 FLASH
+# 4. ASISTENTE FLOTANTE (SIDEBAR) - MODO DETECTIVE
 # ==========================================
 with st.sidebar:
-    st.title("🤖 IA Aduanera (Fase De Pruebas)")
+    st.title("🤖 IA Aduanera (Modo Seguro)")
     
     if not IA_CONFIGURADA:
         st.error("⚠️ Falta configurar la API Key en los secretos.")
     else:
+        # --- MODO DETECTIVE: Ver modelos reales disponibles en tu cuenta ---
+        with st.expander("🛠️ Ver modelos disponibles (Copia uno)", expanded=False):
+            try:
+                lista_modelos = [m.name.replace('models/', '') for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                st.write("Modelos habilitados para tu API Key:")
+                for modelo_nombre in lista_modelos:
+                    st.code(modelo_nombre)
+            except Exception as e:
+                st.error("No se pudo obtener la lista: " + str(e))
+        # -------------------------------------------------------------------
+
+        modelo_elegido = st.text_input("Escribe el modelo a usar (Ej: gemini-2.5-pro):", value="gemini-1.5-pro")
+
         for msg in st.session_state['mensajes_chat']:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -75,12 +88,10 @@ with st.sidebar:
                 st.markdown(prompt)
                 
             with st.chat_message("assistant"):
-                with st.spinner("Consultando con Gemini 2 Flash..."):
+                with st.spinner(f"Consultando con {modelo_elegido}..."):
                     try:
-                        # 1. Configurar exclusivamente el modelo gemini-2.0-flash
-                        modelo = genai.GenerativeModel("gemini-1.5-flash")
+                        modelo = genai.GenerativeModel(modelo_elegido)
                         
-                        # 2. Preparar la instrucción
                         instruccion = f"""
                         Eres un experto en aduanas y aranceles en Colombia. 
                         El usuario pregunta: '{prompt}'.
@@ -92,17 +103,14 @@ with st.sidebar:
                         🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
                         """
                         
-                        # 3. Intentar generar el contenido
                         respuesta = modelo.generate_content(instruccion)
                         
-                        # 4. Mostrar la respuesta y guardarla
-                        st.caption("*(Conexión exitosa usando: Gemini 2 Flash)*")
+                        st.caption(f"*(Conexión exitosa usando: {modelo_elegido})*")
                         st.markdown(respuesta.text)
                         st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
                         
                     except Exception as e:
-                        # Si falla, mostramos el error exacto para saber por qué
-                        st.error("❌ Ocurrió un error con Gemini 2 Flash:")
+                        st.error("❌ Ocurrió un error de conexión:")
                         st.warning(str(e))
                         
     if st.button("🗑️ Limpiar Chat", use_container_width=True):
