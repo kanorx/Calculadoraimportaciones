@@ -90,7 +90,7 @@ with st.sidebar:
                                 break
                                 
                         if modelo_elegido:
-                            modelo = genai.GenerativeModel(modelo_elegido)
+                            modelo = genai.GenerativeModel(gemini-2.0-flash)
                             instruccion = f"""
                             Eres un experto en aduanas y aranceles en Colombia. 
                             El usuario pregunta: '{prompt}'.
