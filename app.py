@@ -5,9 +5,9 @@ import requests
 import io
 import google.generativeai as genai
 
-# Nuevas importaciones para darle color y fórmulas al Excel
+# Librerías para diseño avanzado de Excel
 from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl.utils import get_column_letter
+from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
 
 # ==========================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
@@ -20,7 +20,6 @@ st.set_page_config(page_title="Calculadora Pro", layout="wide", page_icon="📦"
 if 'historial' not in st.session_state:
     st.session_state['historial'] = []
 
-# Nueva memoria para el historial del chat con la IA
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
         {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. Dime qué producto quieres importar y te ayudaré con la subpartida y el arancel estimado."}
@@ -35,7 +34,7 @@ def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viab
     st.success(f"✅ '{nombre_producto}' guardado en el portafolio.")
 
 # ==========================================
-# 2. OBTENER TRM
+# 2. OBTENER TRM REAL
 # ==========================================
 @st.cache_data
 def obtener_trm_colombia():
@@ -66,46 +65,36 @@ with st.sidebar:
     if not IA_CONFIGURADA:
         st.error("⚠️ Falta configurar la API Key en los secretos.")
     else:
-        # Mostrar el historial de mensajes
         for msg in st.session_state['mensajes_chat']:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
         
-        # Campo flotante en la parte inferior del sidebar para escribir
         if prompt := st.chat_input("Escribe tu producto aquí..."):
-            # 1. Guardar y mostrar lo que escribió el usuario
             st.session_state['mensajes_chat'].append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
                 
-            # 2. Consultar a la IA
             with st.chat_message("assistant"):
-                with st.spinner("Analizando..."):
+                with st.spinner("Analizando con Gemini 2.0..."):
                     try:
-                        # Buscar modelo válido
-                        modelo_elegido = None
-                        for m_name in [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]:
-                            if 'flash' in m_name or 'pro' in m_name:
-                                modelo_elegido = m_name
-                                break
-                                
-                        if modelo_elegido:
-                            modelo = genai.GenerativeModel(modelo_elegido)
-                            instruccion = f"""
-                            Eres un experto en aduanas y aranceles en Colombia. 
-                            El usuario pregunta: '{prompt}'.
-                            Responde de forma clara, amigable y muy breve dando la subpartida sugerida aproximada, % de arancel y % de IVA.
-                            No inventes ningun dato solo usa datos oficiales de Colombia.
-                            Recuerda decirle que 🚩 este porcentaje puede haber cambiado que verifique con el codigo de la partida arancelaria.
-                            """
-                            respuesta = modelo.generate_content(instruccion)
-                            
-                            # Mostrar respuesta
-                            st.markdown(respuesta.text)
-                            # Guardar respuesta en la memoria
-                            st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
-                        else:
-                            st.error("No se encontró un modelo disponible.")
+                        # Priorizamos el modelo 2.0 que tiene más límite (1500 RPD)
+                        modelos = [m.name for m in genai.list_models()]
+                        modelo_elegido = "models/gemini-2.0-flash" if "models/gemini-2.0-flash" in modelos else "models/gemini-1.5-pro"
+                        
+                        modelo = genai.GenerativeModel(modelo_elegido)
+                        instruccion = f"""
+                        Eres un experto en aduanas y aranceles en Colombia. 
+                        El usuario pregunta: '{prompt}'.
+                        Responde de forma clara y breve:
+                        1. Subpartida sugerida (10 dígitos).
+                        2. % de Gravamen Arancelario.
+                        3. % de IVA.
+                        No inventes datos. Si no estás seguro, pide más detalles técnicos.
+                        🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
+                        """
+                        respuesta = modelo.generate_content(instruccion)
+                        st.markdown(respuesta.text)
+                        st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
                     except Exception as e:
                         st.error(f"Error: {e}")
                         
@@ -146,7 +135,7 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
     return costo_unitario, ingreso_ml_neto, (ingreso_ml_neto / costo_unitario if costo_unitario > 0 else 0)
 
 # ==========================================
-# 6. INTERFAZ PRINCIPAL (DERECHA)
+# 6. INTERFAZ PRINCIPAL
 # ==========================================
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
@@ -168,8 +157,8 @@ with tab1:
         flete_usd_av = st.number_input("Costo Flete (USD)", value=385.0, key="flete_av")
     with col2:
         trm_av = st.number_input("TRM (COP)", value=TRM_HOY, key="trm_av_input")
-        arancel_pct_av = st.number_input("% Arancel", value=0.15, key="ara_av")
-        iva_pct_av = st.number_input("% IVA", value=0.19, key="iva_av")
+        arancel_pct_av = st.number_input("% Arancel", value=0.15, format="%.2f", key="ara_av")
+        iva_pct_av = st.number_input("% IVA", value=0.19, format="%.2f", key="iva_av")
     with col3:
         tarifa_admin_av = st.number_input("Tarifa Admin", value=110000.0, key="tar_av")
         precio_ml_av = st.number_input("Venta ML (COP)", value=50000.0, key="pml_av")
@@ -243,10 +232,8 @@ with tab3:
 # --- PESTAÑA 4: CARGA MASIVA ---
 with tab_masiva:
     st.subheader("📁 Procesar Reporte Excel")
-    st.info("Sube la plantilla Excel descargada en la pestaña 'Comparador'. Se recalcularán los datos internamente.")
-    archivo_subido = st.file_uploader("Elige tu plantilla Excel (.xlsx)", type=["xlsx"])
+    archivo_subido = st.file_uploader("Sube tu plantilla modificada", type=["xlsx"])
     if archivo_subido is not None and st.button("Procesar Archivo Masivo", type="primary"):
-        # Pandas ignora las fórmulas en texto y procesa solo las columnas de entrada puras.
         df = pd.read_excel(archivo_subido).fillna(0)
         for _, row in df.iterrows():
             metodo = str(row.get('Método', ''))
@@ -262,14 +249,12 @@ with tab_masiva:
                 inputs_row = {k: row[k] for k in base_inputs().keys() if k in row}
                 guardar_simulacion(nombre, metodo, inputs_row, c_u, i_n, v)
             except: pass
-        st.success("¡Archivo importado con éxito!")
+        st.success("¡Importación masiva completada!")
 
-# --- PESTAÑA 5: COMPARADOR Y EXPORTAR DINÁMICO ---
+# --- PESTAÑA 5: COMPARADOR Y EXCEL PRO ---
 with tab_comparador:
-    st.subheader("📊 Tu Portafolio de Simulaciones")
+    st.subheader("📊 Portafolio y Exportación Avanzada")
     if len(st.session_state['historial']) > 0:
-        
-        # Orden estricto de columnas (Para que la A sea 'Producto', B sea 'Método', etc.)
         columnas_ordenadas = [
             "Producto", "Método", "Precio_USD", "TRM", "Cantidad", "Flete_USD", 
             "Arancel_pct", "IVA_pct", "Tarifa_Admin_COP", "Comision_TC_pct", 
@@ -279,81 +264,57 @@ with tab_comparador:
         ]
         
         df_historial = pd.DataFrame(st.session_state['historial'])
-        
-        # Completar columnas faltantes con 0 para evitar errores si solo se calculó AliExpress
         for col in columnas_ordenadas:
-            if col not in df_historial.columns:
-                df_historial[col] = 0.0
-                
-        df_export = df_historial[columnas_ordenadas]
+            if col not in df_historial.columns: df_historial[col] = 0.0
         
-        # Gráficos e Interfaz visual de Streamlit
+        df_export = df_historial[columnas_ordenadas]
         st.dataframe(df_export[["Producto", "Método", "Costo Unitario (Res)", "Ingreso ML (Res)", "Viabilidad (Res)"]], use_container_width=True)
         
-        fig = px.bar(df_export, x="Producto", y="Viabilidad (Res)", color="Método", 
-                     title="Comparación de Viabilidad por Producto", text_auto='.2f')
-        fig.add_hline(y=1.5, line_dash="dot", annotation_text="Meta Mínima (1.5x)", annotation_position="bottom right")
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # --- LÓGICA DE CREACIÓN DEL EXCEL AVANZADO CON OPENPYXL ---
+        # --- LÓGICA DE EXCEL CON SEMÁFORO Y COLORES ---
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            df_export.to_excel(writer, index=False, sheet_name='Plantilla_Importacion')
-            workbook = writer.book
-            worksheet = writer.sheets['Plantilla_Importacion']
+            df_export.to_excel(writer, index=False, sheet_name='Simulaciones')
+            worksheet = writer.sheets['Simulaciones']
             
-            # Estilos de celda
-            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid") # Azul Oscuro
-            header_font = Font(color="FFFFFF", bold=True)
-            res_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") # Verde Claro
-            res_font = Font(bold=True)
-            
-            # 1. Aplicar estilo a la cabecera (Primera fila)
+            # 1. Colores de cabecera
+            header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
             for cell in worksheet[1]:
                 cell.fill = header_fill
-                cell.font = header_font
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-            
-            # 2. Ajustar el ancho de cada columna para que nada quede angosto
+                cell.font = Font(color="FFFFFF", bold=True)
+                cell.alignment = Alignment(horizontal="center")
+
+            # 2. Ajuste de columnas y fórmulas
             for col in worksheet.columns:
                 max_length = 0
                 col_letter = col[0].column_letter
                 for cell in col:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                worksheet.column_dimensions[col_letter].width = max_length + 3
-            
-            # 3. Insertar las fórmulas vivas en las columnas de resultados
-            # Las columnas son: Costo (T), Ingreso (U), Viabilidad (V). La data empieza en la fila 2.
+                    if cell.value: max_length = max(max_length, len(str(cell.value)))
+                worksheet.column_dimensions[col_letter].width = max_length + 4
+
             for row in range(2, len(df_export) + 2):
-                # Fórmula condicional anidada de Excel que calcula exactamente la misma matemática
-                formula_costo = f'=IF(B{row}="Avión", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+G{row})*(1+H{row})+I{row})/IF(E{row}>0,E{row},1), IF(B{row}="Barco", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+J{row})+((K{row}*L{row}*M{row}/1000000)*N{row}*O{row})+P{row})/IF(E{row}>0,E{row},1), IF(B{row}="AliExpress", Q{row}/IF(E{row}>0,E{row},1), 0)))'
-                
-                worksheet[f'T{row}'] = formula_costo
-                worksheet[f'T{row}'].fill = res_fill
-                worksheet[f'T{row}'].font = res_font
-                worksheet[f'T{row}'].number_format = '#,##0.00'
-                
+                # Fórmulas inteligentes
+                worksheet[f'T{row}'] = f'=IF(B{row}="Avión", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+G{row})*(1+H{row})+I{row})/IF(E{row}>0,E{row},1), IF(B{row}="Barco", (((C{row}*D{row}*E{row})+(F{row}*D{row}))*(1+J{row})+((K{row}*L{row}*M{row}/1000000)*N{row}*O{row})+P{row})/IF(E{row}>0,E{row},1), IF(B{row}="AliExpress", Q{row}/IF(E{row}>0,E{row},1), 0)))'
                 worksheet[f'U{row}'] = f'=R{row}*(1-S{row})'
-                worksheet[f'U{row}'].fill = res_fill
-                worksheet[f'U{row}'].font = res_font
-                worksheet[f'U{row}'].number_format = '#,##0.00'
-                
                 worksheet[f'V{row}'] = f'=IF(T{row}>0, U{row}/T{row}, 0)'
-                worksheet[f'V{row}'].fill = res_fill
-                worksheet[f'V{row}'].font = res_font
+                
+                # Formatos de número
+                worksheet[f'T{row}'].number_format = '"$"#,##0'
+                worksheet[f'U{row}'].number_format = '"$"#,##0'
                 worksheet[f'V{row}'].number_format = '0.00'
 
-        # --- FIN LÓGICA DE EXCEL ---
-        
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            st.download_button("📥 Descargar Plantilla Excel Inteligente", data=buffer.getvalue(), file_name="Plantilla_Calculadora.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary", use_container_width=True)
-        with col_btn2:
-            if st.button("Limpiar Historial", use_container_width=True): 
-                st.session_state['historial'] = []
-                st.rerun()
-    else: st.info("Aún no has guardado simulaciones.")
+            # 3. Formato Condicional (Semáforo de Viabilidad en Columna V)
+            green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+            yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+            red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+
+            rango_viabilidad = f"V2:V{len(df_export)+1}"
+            worksheet.conditional_formatting.add(rango_viabilidad, CellIsRule(operator='greaterThan', formula=['1.5'], fill=green_fill))
+            worksheet.conditional_formatting.add(rango_viabilidad, CellIsRule(operator='between', formula=['1.2', '1.5'], fill=yellow_fill))
+            worksheet.conditional_formatting.add(rango_viabilidad, CellIsRule(operator='lessThan', formula=['1.2'], fill=red_fill))
+
+        st.download_button("📥 Descargar Excel Inteligente (con Colores)", data=buffer.getvalue(), file_name="Reporte_Importacion_Pro.xlsx", type="primary", use_container_width=True)
+        if st.button("🗑️ Limpiar Historial"): 
+            st.session_state['historial'] = []
+            st.rerun()
+    else:
+        st.info("Aún no tienes simulaciones guardadas.")
