@@ -22,7 +22,7 @@ if 'historial' not in st.session_state:
 
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
-        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. Revisa la lista de modelos disponibles arriba y dime qué producto quieres consultar."}
+        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. El problema de conexión fue arreglado. Dime qué producto quieres consultar."}
     ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
@@ -57,27 +57,14 @@ except (KeyError, FileNotFoundError):
     IA_CONFIGURADA = False
 
 # ==========================================
-# 4. ASISTENTE FLOTANTE (SIDEBAR) - MODO DETECTIVE
+# 4. ASISTENTE FLOTANTE (SIDEBAR) - CORREGIDO
 # ==========================================
 with st.sidebar:
-    st.title("🤖 IA Aduanera (Modo Seguro)")
+    st.title("🤖 IA Aduanera (Fase De Pruebas)")
     
     if not IA_CONFIGURADA:
         st.error("⚠️ Falta configurar la API Key en los secretos.")
     else:
-        # --- MODO DETECTIVE: Ver modelos reales disponibles en tu cuenta ---
-        with st.expander("🛠️ Ver modelos disponibles (Copia uno)", expanded=False):
-            try:
-                lista_modelos = [m.name.replace('models/', '') for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                st.write("Modelos habilitados para tu API Key:")
-                for modelo_nombre in lista_modelos:
-                    st.code(modelo_nombre)
-            except Exception as e:
-                st.error("No se pudo obtener la lista: " + str(e))
-        # -------------------------------------------------------------------
-
-        modelo_elegido = st.text_input("Escribe el modelo a usar (Ej: gemini-2.5-pro):", value="gemini-1.5-pro")
-
         for msg in st.session_state['mensajes_chat']:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -88,30 +75,54 @@ with st.sidebar:
                 st.markdown(prompt)
                 
             with st.chat_message("assistant"):
-                with st.spinner(f"Consultando con {modelo_elegido}..."):
-                    try:
-                        modelo = genai.GenerativeModel(modelo_elegido)
-                        
-                        instruccion = f"""
-                        Eres un experto en aduanas y aranceles en Colombia. 
-                        El usuario pregunta: '{prompt}'.
-                        Responde de forma clara y breve:
-                        1. Subpartida sugerida (10 dígitos).
-                        2. % de Gravamen Arancelario.
-                        3. % de IVA.
-                        No inventes datos. Si no estás seguro, pide más detalles técnicos.
-                        🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
-                        """
-                        
-                        respuesta = modelo.generate_content(instruccion)
-                        
-                        st.caption(f"*(Conexión exitosa usando: {modelo_elegido})*")
-                        st.markdown(respuesta.text)
-                        st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
-                        
-                    except Exception as e:
-                        st.error("❌ Ocurrió un error de conexión:")
-                        st.warning(str(e))
+                with st.spinner("Buscando un servidor libre..."):
+                    
+                    # AQUÍ ESTÁ LA CORRECCIÓN CLAVE:
+                    # Probamos los modelos que sabemos que tienen 1,500 consultas gratis.
+                    # Eliminamos la línea que forzaba el uso del 2.0
+                    modelos_a_probar = [
+                        "gemini-1.5-flash", # Nuestro caballo de batalla (1500 limit)
+                        "gemini-1.5-pro",   # El plan B
+                        "gemini-2.0-flash"  # Lo dejamos al final por si acaso
+                    ]
+                    
+                    exito = False
+                    
+                    for nombre_modelo in modelos_a_probar:
+                        try:
+                            # 1. Configurar el modelo que estamos probando en este ciclo
+                            modelo = genai.GenerativeModel(nombre_modelo)
+                            
+                            # 2. Preparar la instrucción
+                            instruccion = f"""
+                            Eres un experto en aduanas y aranceles en Colombia. 
+                            El usuario pregunta: '{prompt}'.
+                            Responde de forma clara y breve:
+                            1. Subpartida sugerida (10 dígitos).
+                            2. % de Gravamen Arancelario.
+                            3. % de IVA.
+                            No inventes datos. Si no estás seguro, pide más detalles técnicos.
+                            🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
+                            """
+                            
+                            # 3. Intentar generar el contenido
+                            respuesta = modelo.generate_content(instruccion)
+                            
+                            # 4. Si llegamos aquí sin errores, mostramos la respuesta y guardamos
+                            st.caption(f"*(Conexión exitosa usando: {nombre_modelo})*")
+                            st.markdown(respuesta.text)
+                            st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
+                            
+                            exito = True # Marcamos que lo logramos
+                            break # Rompemos el bucle para no seguir probando otros modelos
+                            
+                        except Exception as e:
+                            # Si falla (Error 429), el código simplemente continúa al siguiente modelo en la lista
+                            continue 
+                    
+                    # Si después de probar los 3 modelos, la variable 'exito' sigue siendo falsa:
+                    if not exito:
+                        st.error("❌ Todos los modelos están temporalmente saturados. Por favor, espera 60 segundos y vuelve a intentar.")
                         
     if st.button("🗑️ Limpiar Chat", use_container_width=True):
         st.session_state['mensajes_chat'] = [{"role": "assistant", "content": "Chat reiniciado. ¿En qué más te ayudo?"}]
