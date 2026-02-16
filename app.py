@@ -3,7 +3,7 @@ import plotly.express as px
 import pandas as pd
 import requests
 import io
-import google.generativeai as genai
+import json
 
 # Librerías para diseño avanzado de Excel
 from openpyxl.styles import PatternFill, Font, Alignment
@@ -12,7 +12,7 @@ from openpyxl.formatting.rule import CellIsRule
 # ==========================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
-st.set_page_config(page_title="Calculadora Pro", layout="wide", page_icon="📦")
+st.set_page_config(page_title="Calculadora Pro - OpenRouter", layout="wide", page_icon="📦")
 
 # ==========================================
 # 1. MEMORIA DE LA APP (HISTORIAL Y CHAT)
@@ -22,7 +22,7 @@ if 'historial' not in st.session_state:
 
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
-        {"role": "assistant", "content": "¡Hola! Soy tu asistente aduanero. El problema de conexión fue arreglado. Dime qué producto quieres consultar."}
+        {"role": "assistant", "content": "¡Hola! Estoy conectado a OpenRouter sin límites. Dime qué producto quieres consultar."}
     ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
@@ -47,89 +47,97 @@ def obtener_trm_colombia():
 TRM_HOY = obtener_trm_colombia()
 
 # ==========================================
-# 3. CONFIGURACIÓN DE LA IA
+# 3. CONFIGURACIÓN DE OPENROUTER (LA NUEVA IA)
 # ==========================================
 try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=API_KEY)
+    API_KEY = st.secrets["OPENROUTER_API_KEY"]
     IA_CONFIGURADA = True
 except (KeyError, FileNotFoundError):
     IA_CONFIGURADA = False
 
+def consultar_openrouter(prompt, modelo_id):
+    """Función maestra para hablar con cualquier modelo en OpenRouter"""
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://calculadorapro.com", # Requisito de OpenRouter
+        "X-Title": "Calculadora Aduanas" # Requisito de OpenRouter
+    }
+    
+    instruccion_sistema = """
+    Eres un experto en aduanas y aranceles en Colombia. 
+    Responde de forma clara y breve:
+    1. Subpartida sugerida (10 dígitos).
+    2. % de Gravamen Arancelario.
+    3. % de IVA.
+    No inventes datos. Si no estás seguro, pide más detalles técnicos.
+    🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
+    """
+    
+    data = {
+        "model": modelo_id,
+        "messages": [
+            {"role": "system", "content": instruccion_sistema},
+            {"role": "user", "content": f"El usuario pregunta: '{prompt}'"}
+        ]
+    }
+    
+    respuesta = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+    
+    if respuesta.status_code == 200:
+        return respuesta.json()['choices'][0]['message']['content']
+    else:
+        return f"Error en la API: {respuesta.status_code} - {respuesta.text}"
+
 # ==========================================
-# 4. ASISTENTE FLOTANTE (SIDEBAR) - CORREGIDO
+# 4. ASISTENTE FLOTANTE (SIDEBAR)
 # ==========================================
 with st.sidebar:
-    st.title("🤖 IA Aduanera (Fase De Pruebas)")
+    st.title("🤖 IA Aduanera (OpenRouter)")
     
     if not IA_CONFIGURADA:
-        st.error("⚠️ Falta configurar la API Key en los secretos.")
+        st.error("⚠️ Falta configurar la OPENROUTER_API_KEY en los secretos.")
     else:
+        # Selector de Modelo (Gratis vs Pago)
+        opcion_modelo = st.radio(
+            "Selecciona el Motor de IA:",
+            ["Llama 3.3 70B (Gratis)", "Gemini Flash Lite (Pago, 0.10/M)"]
+        )
+        
+        # Asignar el ID real según la opción
+        if opcion_modelo == "Llama 3.3 70B (Gratis)":
+            modelo_elegido = "meta-llama/llama-3.3-70b-instruct:free"
+        else:
+            modelo_elegido = "google/gemini-2.5-flash-lite"
+            
+        st.markdown("---")
+        
+        # Mostrar Chat
         for msg in st.session_state['mensajes_chat']:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
         
+        # Input del usuario
         if prompt := st.chat_input("Escribe tu producto aquí..."):
             st.session_state['mensajes_chat'].append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
                 
             with st.chat_message("assistant"):
-                with st.spinner("Buscando un servidor libre..."):
+                with st.spinner(f"Consultando con {opcion_modelo}..."):
                     
-                    # AQUÍ ESTÁ LA CORRECCIÓN CLAVE:
-                    # Probamos los modelos que sabemos que tienen 1,500 consultas gratis.
-                    # Eliminamos la línea que forzaba el uso del 2.0
-                    modelos_a_probar = [
-                        "gemini-1.5-flash", # Nuestro caballo de batalla (1500 limit)
-                        "gemini-1.5-pro",   # El plan B
-                        "gemini-2.0-flash"  # Lo dejamos al final por si acaso
-                    ]
+                    respuesta_ia = consultar_openrouter(prompt, modelo_elegido)
                     
-                    exito = False
-                    
-                    for nombre_modelo in modelos_a_probar:
-                        try:
-                            # 1. Configurar el modelo que estamos probando en este ciclo
-                            modelo = genai.GenerativeModel(nombre_modelo)
-                            
-                            # 2. Preparar la instrucción
-                            instruccion = f"""
-                            Eres un experto en aduanas y aranceles en Colombia. 
-                            El usuario pregunta: '{prompt}'.
-                            Responde de forma clara y breve:
-                            1. Subpartida sugerida (10 dígitos).
-                            2. % de Gravamen Arancelario.
-                            3. % de IVA.
-                            No inventes datos. Si no estás seguro, pide más detalles técnicos.
-                            🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
-                            """
-                            
-                            # 3. Intentar generar el contenido
-                            respuesta = modelo.generate_content(instruccion)
-                            
-                            # 4. Si llegamos aquí sin errores, mostramos la respuesta y guardamos
-                            st.caption(f"*(Conexión exitosa usando: {nombre_modelo})*")
-                            st.markdown(respuesta.text)
-                            st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta.text})
-                            
-                            exito = True # Marcamos que lo logramos
-                            break # Rompemos el bucle para no seguir probando otros modelos
-                            
-                        except Exception as e:
-                            # Si falla (Error 429), el código simplemente continúa al siguiente modelo en la lista
-                            continue 
-                    
-                    # Si después de probar los 3 modelos, la variable 'exito' sigue siendo falsa:
-                    if not exito:
-                        st.error("❌ Todos los modelos están temporalmente saturados. Por favor, espera 60 segundos y vuelve a intentar.")
+                    st.caption(f"*(Motor: {opcion_modelo})*")
+                    st.markdown(respuesta_ia)
+                    st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta_ia})
                         
     if st.button("🗑️ Limpiar Chat", use_container_width=True):
         st.session_state['mensajes_chat'] = [{"role": "assistant", "content": "Chat reiniciado. ¿En qué más te ayudo?"}]
         st.rerun()
 
 # ==========================================
-# 5. FUNCIONES MATEMÁTICAS
+# 5. FUNCIONES MATEMÁTICAS (SE MANTIENEN IGUAL)
 # ==========================================
 def calcular_alibaba_avion(precio_usd, trm, cantidad, flete_usd, arancel_pct, iva_pct, tarifa_admin_cop, precio_ml, comision_ml_pct):
     if cantidad <= 0: return 0, 0, 0
@@ -161,7 +169,7 @@ def calcular_aliexpress(costo_pedido_cop, cantidad, precio_ml, comision_ml_pct):
     return costo_unitario, ingreso_ml_neto, (ingreso_ml_neto / costo_unitario if costo_unitario > 0 else 0)
 
 # ==========================================
-# 6. INTERFAZ PRINCIPAL
+# 6. INTERFAZ PRINCIPAL (SE MANTIENE IGUAL)
 # ==========================================
 st.title("📦 Calculadora Pro de Importaciones")
 st.markdown(f"**TRM Oficial del día:** `${TRM_HOY:,.2f} COP` *(Actualizado automáticamente)*")
