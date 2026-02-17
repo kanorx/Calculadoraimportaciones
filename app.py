@@ -53,7 +53,7 @@ def consultar_openrouter(prompt):
     
     # Aquí puedes cambiar el modelo principal si lo deseas en el futuro
     modelos_a_probar = [
-        "google/gemini-2.5-flash-lite",               # Modelo principal (Económico y veloz)
+        "google/gemini-2.5-flash",               # Modelo principal (Económico y veloz)
         "meta-llama/llama-3.3-70b-instruct:free",     # Respaldo 1
         "nousresearch/hermes-3-llama-3.1-405b:free",  # Respaldo 2
         "google/gemma-3-27b:free"                     # Respaldo 3
