@@ -21,7 +21,7 @@ if 'historial' not in st.session_state:
 
 if 'mensajes_chat' not in st.session_state:
     st.session_state['mensajes_chat'] = [
-        {"role": "assistant", "content": "¡Hola! Sistema 100% operativo con IA antifallos, gráficas y cálculo de Costo Total. ¿Qué producto consultamos?"}
+        {"role": "assistant", "content": "¡Hola! Asistente aduanero 100% operativo. ¿Qué producto consultamos hoy?"}
     ]
 
 def guardar_simulacion(nombre_producto, metodo, inputs, costo_u, ingreso_n, viabilidad):
@@ -46,21 +46,23 @@ def obtener_trm_colombia():
 TRM_HOY = obtener_trm_colombia()
 
 # ==========================================
-# 3. CONFIGURACIÓN DE LA IA (OPENROUTER MULTI-MODELO)
+# 3. CONFIGURACIÓN DE LA IA (OPENROUTER PRIVADO)
 # ==========================================
-def consultar_openrouter(prompt, modelo_principal):
-    """Prueba el modelo elegido. Si se satura (429), prueba automáticamente los de respaldo."""
+def consultar_openrouter(prompt):
+    """Prueba el modelo configurado en silencio. Si se satura (429), salta al siguiente."""
+    
+    # Aquí puedes cambiar el modelo principal si lo deseas en el futuro
     modelos_a_probar = [
-        modelo_principal, 
-        "nousresearch/hermes-3-llama-3.1-405b:free", 
-        "google/gemma-3-27b:free",
-        "meta-llama/llama-3.2-3b-instruct:free"
+        "google/gemini-2.5-flash-lite",               # Modelo principal (Económico y veloz)
+        "meta-llama/llama-3.3-70b-instruct:free",     # Respaldo 1
+        "nousresearch/hermes-3-llama-3.1-405b:free",  # Respaldo 2
+        "google/gemma-3-27b:free"                     # Respaldo 3
     ]
     
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"]
     except:
-        return "⚠️ Error: Falta configurar OPENROUTER_API_KEY en los secretos de Streamlit."
+        return "⚠️ Error de configuración interna. (Falta API Key)"
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -75,7 +77,7 @@ def consultar_openrouter(prompt, modelo_principal):
     1. Subpartida sugerida (10 dígitos).
     2. % de Gravamen Arancelario.
     3. % de IVA.
-    No inventes datos solo da el link  https://muisca.dian.gov.co/WebArancel/DefMenuConsultas.faces
+    No inventes datos. Luego de  dar los datos  brinda este link https://muisca.dian.gov.co/WebArancel/DefConsultaNomenclaturaPorCodigo.faces para que consulten el codigo.
     🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
     """
 
@@ -92,27 +94,19 @@ def consultar_openrouter(prompt, modelo_principal):
             
             if respuesta.status_code == 200:
                 texto = respuesta.json()['choices'][0]['message']['content']
-                return f"*(Motor conectado: {modelo})*\n\n{texto}"
+                return texto # Se devuelve el texto limpio, sin mencionar el motor
             elif respuesta.status_code == 429:
-                st.warning(f"⚠️ {modelo} está saturado, probando motor de respaldo...")
-                continue
+                continue # Salta en silencio al siguiente modelo si hay saturación
         except Exception:
             continue
 
-    return "❌ Todos los servidores están ocupados en este momento. Intenta de nuevo en unos segundos."
+    return "❌ Servidores ocupados en este momento. Intenta de nuevo en unos segundos."
 
 # ==========================================
-# 4. ASISTENTE FLOTANTE (SIDEBAR)
+# 4. ASISTENTE FLOTANTE (SIDEBAR LIMPIA)
 # ==========================================
 with st.sidebar:
     st.title("🤖 Asistente Aduanero")
-    
-    opcion_ia = st.radio(
-        "Selecciona el Motor de IA:",
-        ["Llama 3.3 70B (Gratis)", "Gemini 2.5 Flash Lite (Pago)"]
-    )
-    
-    modelo_elegido = "meta-llama/llama-3.3-70b-instruct:free" if "Llama" in opcion_ia else "google/gemini-2.5-flash-lite"
     st.divider()
 
     for msg in st.session_state['mensajes_chat']:
@@ -126,7 +120,7 @@ with st.sidebar:
             
         with st.chat_message("assistant"):
             with st.spinner("Consultando normativas y aranceles..."):
-                respuesta_ia = consultar_openrouter(prompt, modelo_elegido)
+                respuesta_ia = consultar_openrouter(prompt)
                 st.markdown(respuesta_ia)
                 st.session_state['mensajes_chat'].append({"role": "assistant", "content": respuesta_ia})
                     
