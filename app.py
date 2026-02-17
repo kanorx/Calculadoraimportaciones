@@ -75,7 +75,7 @@ def consultar_openrouter(prompt):
     Eres un experto en aduanas y aranceles en Colombia. 
     Responde de forma clara y breve:
     1. Subpartida sugerida (10 dígitos).
-    2. % de Gravamen Arancelario.
+    2. % de Gravamen Arancelario (Real O Aproximado).
     3. % de IVA.
     No inventes datos. Luego de  dar los datos  brinda este link https://muisca.dian.gov.co/WebArancel/DefConsultaNomenclaturaPorCodigo.faces para que consulten el codigo.
     🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
