@@ -1,6 +1,7 @@
 streamlit
 pandas
-plotly
 requests
+plotly
 openpyxl
-google-generativeai
+streamlit-option-menu
+streamlit-lottie
