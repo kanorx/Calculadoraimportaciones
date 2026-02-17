@@ -283,32 +283,105 @@ elif selected_nav == "Inteligencia Mercado":
 
 # --- REPORTES Y BI ---
 elif selected_nav == "Reportes & BI":
-    st.markdown("### 📊 Business Intelligence")
+    st.markdown("### 📊 Business Intelligence & Exportación")
+    
     if not st.session_state['historial']:
-        st.warning("Aún no has simulado ningún producto.")
+        st.info("ℹ️ Realiza al menos una simulación para activar el dashboard de análisis.")
+        if lottie_logistics: st_lottie(lottie_logistics, height=300, key="empty_state")
     else:
         df_h = pd.DataFrame(st.session_state['historial'])
+        
+        # --- TARJETAS SUPERIORES ---
+        with st.container():
+            col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+            col_metrics1.metric("Total SKU Analizados", len(df_h))
+            avg_viab = df_h['Viabilidad (Res)'].mean()
+            col_metrics2.metric("Viabilidad Promedio", f"{avg_viab:.2f}x", delta=f"{avg_viab-1.5:.2f}" if avg_viab > 1.5 else f"{avg_viab-1.5:.2f}")
+            col_metrics3.metric("Costo Promedio", f"${df_h['Costo Unitario (Res)'].mean():,.0f}")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --- GRÁFICAS PRO CON PLOTLY ---
         g1, g2 = st.columns(2)
+        
         with g1:
-            fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', title="Costos vs Ingresos (COP)", template="plotly_white", color_discrete_sequence=['#FF6B6B', '#51CF66'])
-            fig1.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            # Gráfica 1: Balance Financiero
+            fig1 = px.bar(
+                df_h, 
+                x='Producto', 
+                y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], 
+                barmode='group', 
+                text_auto='.2s', # Muestra números abreviados (ej. 150k)
+                color_discrete_sequence=['#FF4B4B', '#00E676'], # Rojo alerta y Verde éxito
+                title="💰 Balance Financiero: Costo vs Ingreso"
+            )
+            fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
+            fig1.update_layout(
+                font_family="Inter",
+                title_font_size=18,
+                title_font_color="#091E42",
+                legend_title_text="",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), # Leyenda arriba
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, title=""),
+                yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False),
+                hovermode="x unified", # Tarjeta de hover elegante
+                margin=dict(t=60, b=20, l=20, r=20)
+            )
             st.plotly_chart(fig1, use_container_width=True)
+            
         with g2:
-            fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', color_continuous_scale=['#FF6B6B', '#51CF66'], title="Semáforo de Rentabilidad", template="plotly_white")
-            fig2.add_hline(y=1.5, line_dash="dot", annotation_text="Meta (1.5x)")
-            fig2.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+            # Gráfica 2: Semáforo de Viabilidad
+            fig2 = px.bar(
+                df_h, 
+                x='Producto', 
+                y='Viabilidad (Res)', 
+                color='Viabilidad (Res)',
+                text_auto='.2f', # Muestra el ratio exacto con 2 decimales
+                color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], # Escala de semáforo
+                title="⚖️ Índice de Rentabilidad"
+            )
+            fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)", annotation_position="top left", annotation_font_color="#2E5BFF")
+            fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
+            fig2.update_layout(
+                font_family="Inter",
+                title_font_size=18,
+                title_font_color="#091E42",
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                xaxis=dict(showgrid=False, title=""),
+                yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False),
+                coloraxis_showscale=False, # Oculta la fea barra de colores lateral
+                hovermode="x",
+                margin=dict(t=60, b=20, l=20, r=20)
+            )
             st.plotly_chart(fig2, use_container_width=True)
 
-        # Exportación Pro a Excel
-        buf = io.BytesIO()
-        with pd.ExcelWriter(buf, engine='openpyxl') as wr:
-            df_h.to_excel(wr, index=False, sheet_name='Reporte')
-            for c in wr.sheets['Reporte'][1]:
-                c.fill = PatternFill(start_color="2E5BFF", fill_type="solid")
-                c.font = Font(color="FFFFFF", bold=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.dataframe(df_h, use_container_width=True, hide_index=True)
         
-        st.download_button("📥 Descargar Reporte Excel", buf.getvalue(), "Reporte_BI_ImportPro.xlsx", "primary")
-        
-        if st.button("🗑️ Limpiar Memoria"):
-            st.session_state['historial'] = []
-            st.rerun()
+        # --- EXPORTACIÓN EXCEL PRO ---
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
+            df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
+            ws = wr.sheets['Reporte Gerencial']
+            for cell in ws[1]:
+                cell.fill = PatternFill(start_color="2E5BFF", fill_type="solid")
+                cell.font = Font(color="FFFFFF", bold=True)
+                cell.alignment = Alignment(horizontal='center')
+            
+            for col in ws.columns:
+                 col_letter = col[0].column_letter
+                 ws.column_dimensions[col_letter].width = 20
+                 
+            ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='greaterThan', formula=['1.5'], fill=PatternFill(start_color="C6EFCE", fill_type="solid")))
+            ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='lessThan', formula=['1.2'], fill=PatternFill(start_color="FFC7CE", fill_type="solid")))
+            
+        col_btn1, col_btn2 = st.columns([1, 1])
+        with col_btn1:
+            st.download_button("📥 Descargar Reporte Excel", buffer.getvalue(), "Reporte_ImportPro.xlsx", type="primary")
+        with col_btn2:
+            if st.button("🗑️ Purgar Datos del Historial"):
+                st.session_state['historial'] = []
+                st.rerun()
