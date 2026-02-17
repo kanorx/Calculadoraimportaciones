@@ -75,7 +75,7 @@ def consultar_openrouter(prompt, modelo_principal):
     1. Subpartida sugerida (10 dígitos).
     2. % de Gravamen Arancelario.
     3. % de IVA.
-    No inventes datos solo da el link  https://muisca.dian.gov.co/WebArancel/DefMenuConsultas.faces para que ellos verifiquen diles que deben poner la partida arancelaria.
+    No inventes datos solo da el link  https://muisca.dian.gov.co/WebArancel/DefMenuConsultas.faces
     🚩 Advierte que el porcentaje puede variar y debe verificarse en el arancel oficial.
     """
 
