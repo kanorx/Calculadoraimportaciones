@@ -46,21 +46,18 @@ def render_dashboard_bi(historial):
                 mui.Typography("Costo Unitario Promedio", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
                 mui.Typography(f"${df_h['Costo Unitario (Res)'].mean():,.0f}", variant="h3", sx={"color": "#2E5BFF", "fontWeight": 800})
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
     # SELECTOR DE VISTAS (Solución al Bug de ECharts en Tabs)
     # ---------------------------------------------------------
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Usamos un st.radio horizontal en lugar de st.tabs
     vista_actual = st.radio(
         "Navegación del Reporte:",
         ["📊 Visión General", "🫧 Riesgo e Inversión (Avanzado)"],
         horizontal=True,
         label_visibility="collapsed"
     )
-    
+
     # --- VISTA 1: VISIÓN GENERAL ---
     if vista_actual == "📊 Visión General":
         st.markdown("<br>", unsafe_allow_html=True)
@@ -112,7 +109,7 @@ def render_dashboard_bi(historial):
         st.markdown("<br>", unsafe_allow_html=True)
         c_adv1, c_adv2 = st.columns(2)
         
-with c_adv1:
+        with c_adv1:
             st.markdown("<h5 style='text-align:center; color:#091E42;'>🫧 Cuadrante Mágico (Viabilidad vs Costo)</h5>", unsafe_allow_html=True)
             max_ingreso = float(df_h['Ingreso ML (Res)'].max()) if not df_h.empty else 1.0
             scatter_data = []
@@ -122,7 +119,7 @@ with c_adv1:
                 ingreso_nativo = float(row['Ingreso ML (Res)'])
                 b_size = float((ingreso_nativo / max_ingreso) * 40 + 15) if max_ingreso > 0 else 20.0
                 
-                # EL TRUCO: Inyectar todo el diseño HTML directamente en el atributo "name"
+                # EL TRUCO HTML
                 texto_flotante = f"<b style='font-size:14px; color:#2E5BFF;'>{str(row['Producto'])}</b><br/>💰 Costo: ${costo_nativo:,.0f} COP<br/>⚖️ Viabilidad: {viab_nativa:.2f}x"
                 
                 scatter_data.append({
@@ -133,7 +130,6 @@ with c_adv1:
                 })
             
             option_scatter = {
-                # Ahora le decimos a ECharts que SOLO imprima la variable {b} (que es nuestro texto_flotante)
                 "tooltip": {"trigger": "item", "formatter": "{b}"},
                 "xAxis": {"name": "Costo Unitario (COP)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
                 "yAxis": {"name": "Viabilidad (x)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
