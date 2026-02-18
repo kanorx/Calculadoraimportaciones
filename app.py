@@ -86,7 +86,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEMORIA DE ESTADO (SOLUCIÓN AL KEYERROR)
+# 2. MEMORIA DE ESTADO 
 # ==========================================
 # ¡IMPORTANTE! Estas líneas evitan que la nube colapse al buscar variables que no existen.
 if 'historial' not in st.session_state: 
@@ -96,8 +96,9 @@ if 'chat_log' not in st.session_state:
     st.session_state['chat_log'] = [{"role": "assistant", "content": "Sistema en línea. Soy tu copiloto de importaciones."}]
 
 # ==========================================
-# 3. CONEXIÓN TRM (ANTI-BLOQUEOS GUBERNAMENTALES)
+# 3. CONEXIÓN TRM (AB)
 # ==========================================
+
 @st.cache_data(ttl=3600)
 def fetch_trm():
     try:
