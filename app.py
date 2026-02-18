@@ -1,15 +1,15 @@
 import streamlit as st
 import pandas as pd
 import io
-import plotly.express as px
 
-# LIBRERÍAS DE UI Y TABLAS AVANZADAS
+# LIBRERÍAS DE UI, TABLAS Y GRÁFICOS AVANZADOS
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
+from streamlit_echarts import st_echarts  # <--- NUEVO MOTOR GRÁFICO
 
 # MÓDULOS PROPIOS (LA ARQUITECTURA)
 from ui.design import inyectar_estilos, load_lottieurl
@@ -181,6 +181,8 @@ elif selected_nav == "Reportes & BI":
         if lottie_logistics: st_lottie(lottie_logistics, height=300, key="empty_state")
     else:
         df_h = pd.DataFrame(st.session_state['historial'])
+        
+        # TARJETAS MÉTRICAS
         with st.container():
             col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
             col_metrics1.metric("Total SKU Analizados", len(df_h))
@@ -189,31 +191,86 @@ elif selected_nav == "Reportes & BI":
             col_metrics3.metric("Costo Promedio", f"${df_h['Costo Unitario (Res)'].mean():,.0f}")
 
         st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ---------------------------------------------------------
+        # NUEVOS GRÁFICOS CON ECHARTS (NIVEL SAAS)
+        # ---------------------------------------------------------
         g1, g2 = st.columns(2)
+        
         with g1:
-            fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero")
-            fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
-            fig1.update_layout(font_family="Inter", title_font_color="#091E42", legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False), hovermode="x unified", margin=dict(t=60, b=20, l=20, r=20))
-            st.plotly_chart(fig1, use_container_width=True)
+            st.markdown("<h5 style='text-align:center; color:#091E42;'>💰 Balance Financiero: Costo vs Ingreso</h5>", unsafe_allow_html=True)
+            # Extraemos datos para ECharts
+            productos = df_h['Producto'].tolist()
+            costos = df_h['Costo Unitario (Res)'].round(0).tolist()
+            ingresos = df_h['Ingreso ML (Res)'].round(0).tolist()
+            
+            option_bar = {
+                "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+                "legend": {"data": ["Costo Unitario", "Ingreso Neto"], "bottom": 0},
+                "grid": {"left": "3%", "right": "4%", "bottom": "15%", "containLabel": True},
+                "xAxis": {"type": "category", "data": productos, "axisLine": {"show": False}},
+                "yAxis": {"type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
+                "color": ["#FF4B4B", "#00E676"],
+                "series": [
+                    {
+                        "name": "Costo Unitario",
+                        "type": "bar",
+                        "data": costos,
+                        "itemStyle": {"borderRadius": [6, 6, 0, 0]}, # Bordes redondeados elegantes
+                        "barGap": "15%"
+                    },
+                    {
+                        "name": "Ingreso Neto",
+                        "type": "bar",
+                        "data": ingresos,
+                        "itemStyle": {"borderRadius": [6, 6, 0, 0]}
+                    }
+                ]
+            }
+            st_echarts(options=option_bar, height="350px")
             
         with g2:
-            fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', text_auto='.2f', color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], title="⚖️ Índice de Rentabilidad")
-            fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)")
-            fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
-            fig2.update_layout(font_family="Inter", title_font_color="#091E42", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False), coloraxis_showscale=False, hovermode="x", margin=dict(t=60, b=20, l=20, r=20))
-            st.plotly_chart(fig2, use_container_width=True)
+            st.markdown("<h5 style='text-align:center; color:#091E42;'>⚖️ Tacómetro de Rentabilidad Promedio</h5>", unsafe_allow_html=True)
+            option_gauge = {
+                "tooltip": {"formatter": "{a} <br/>{b} : {c}x"},
+                "series": [
+                    {
+                        "name": "Rentabilidad",
+                        "type": "gauge",
+                        "min": 0,
+                        "max": 3,
+                        "splitNumber": 3,
+                        "axisLine": {
+                            "lineStyle": {
+                                "width": 18,
+                                "color": [
+                                    [0.4, "#FF4B4B"], # Rojo hasta 1.2x (0.4 de 3)
+                                    [0.5, "#FFD166"], # Amarillo de 1.2x a 1.5x
+                                    [1, "#00E676"]    # Verde de 1.5x en adelante
+                                ]
+                            }
+                        },
+                        "pointer": {"itemStyle": {"color": "auto"}},
+                        "axisTick": {"distance": -20, "length": 8, "lineStyle": {"color": "#fff", "width": 2}},
+                        "splitLine": {"distance": -20, "length": 20, "lineStyle": {"color": "#fff", "width": 3}},
+                        "axisLabel": {"color": "inherit", "distance": 30, "fontSize": 12},
+                        "detail": {"valueAnimation": True, "formatter": "{value}x", "color": "inherit", "fontSize": 28, "fontWeight": "bold", "padding": [40, 0, 0, 0]},
+                        "data": [{"value": round(avg_viab, 2), "name": "Ratio"}]
+                    }
+                ]
+            }
+            st_echarts(options=option_gauge, height="350px")
 
         # ---------------------------------------------------------
-        # MAGIA DE AgGrid PARA LA TABLA 
+        # MAGIA DE AgGrid PARA LA TABLA DE DATOS
         # ---------------------------------------------------------
-
         st.markdown("<br><h4 style='color: #091E42; font-weight: 600;'>📑 Registro Detallado de Simulaciones</h4>", unsafe_allow_html=True)
         
         gb = GridOptionsBuilder.from_dataframe(df_h)
         gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
         gb.configure_side_bar() 
         
-        # 2. Formato VIP a las columnas (Moneda y Decimales)
+        # Formato VIP a las columnas
         gb.configure_column("Costo Unitario (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
         gb.configure_column("Ingreso ML (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
         gb.configure_column("Viabilidad (Res)", type=["numericColumn"], valueFormatter="value != undefined ? value.toFixed(2) + 'x' : ''")
@@ -226,12 +283,10 @@ elif selected_nav == "Reportes & BI":
             gridOptions=gridOptions,
             enable_enterprise_modules=False,
             allow_unsafe_jscode=True,
-            theme='alpine', # Tema limpio y moderno
+            theme='alpine',
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
             height=300
         )
-        # ---------------------------------------------------------
-        # ---------------------------------------------------------
         
         st.markdown("<br>", unsafe_allow_html=True)
         
