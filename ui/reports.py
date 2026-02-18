@@ -112,7 +112,7 @@ def render_dashboard_bi(historial):
         st.markdown("<br>", unsafe_allow_html=True)
         c_adv1, c_adv2 = st.columns(2)
         
-        with c_adv1:
+with c_adv1:
             st.markdown("<h5 style='text-align:center; color:#091E42;'>🫧 Cuadrante Mágico (Viabilidad vs Costo)</h5>", unsafe_allow_html=True)
             max_ingreso = float(df_h['Ingreso ML (Res)'].max()) if not df_h.empty else 1.0
             scatter_data = []
@@ -121,20 +121,25 @@ def render_dashboard_bi(historial):
                 viab_nativa = float(row['Viabilidad (Res)'])
                 ingreso_nativo = float(row['Ingreso ML (Res)'])
                 b_size = float((ingreso_nativo / max_ingreso) * 40 + 15) if max_ingreso > 0 else 20.0
+                
+                # EL TRUCO: Inyectar todo el diseño HTML directamente en el atributo "name"
+                texto_flotante = f"<b style='font-size:14px; color:#2E5BFF;'>{str(row['Producto'])}</b><br/>💰 Costo: ${costo_nativo:,.0f} COP<br/>⚖️ Viabilidad: {viab_nativa:.2f}x"
+                
                 scatter_data.append({
-                    "name": str(row['Producto']),
+                    "name": texto_flotante,
                     "value": [round(costo_nativo, 0), round(viab_nativa, 2)],
                     "symbolSize": b_size,
                     "itemStyle": {"opacity": 0.8}
                 })
             
             option_scatter = {
-                "tooltip": {"trigger": "item", "formatter": "{b}<br/>Costo: ${c[0]}<br/>Viabilidad: {c[1]}x"},
+                # Ahora le decimos a ECharts que SOLO imprima la variable {b} (que es nuestro texto_flotante)
+                "tooltip": {"trigger": "item", "formatter": "{b}"},
                 "xAxis": {"name": "Costo Unitario (COP)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
                 "yAxis": {"name": "Viabilidad (x)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
                 "series": [{"type": "scatter", "data": scatter_data, "itemStyle": {"color": "#2E5BFF"}}]
             }
-            st_echarts(options=option_scatter, height="350px", key="scatter_chart_fix")
+            st_echarts(options=option_scatter, height="350px", key="scatter_chart_fix_final")
             
         with c_adv2:
             st.markdown("<h5 style='text-align:center; color:#091E42;'>🍩 Distribución de Inversión por Método</h5>", unsafe_allow_html=True)
