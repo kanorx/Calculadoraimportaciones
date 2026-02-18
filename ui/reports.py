@@ -48,12 +48,21 @@ def render_dashboard_bi(historial):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+# ---------------------------------------------------------
+    # SELECTOR DE VISTAS (Solución al Bug de ECharts en Tabs)
     # ---------------------------------------------------------
-    # PESTAÑAS PARA ORGANIZAR LAS GRÁFICAS ECHARTS
-    # ---------------------------------------------------------
-    tab_general, tab_avanzado = st.tabs(["📊 Visión General", "🫧 Riesgo e Inversión (Avanzado)"])
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    with tab_general:
+    # Usamos un st.radio horizontal en lugar de st.tabs
+    vista_actual = st.radio(
+        "Navegación del Reporte:",
+        ["📊 Visión General", "🫧 Riesgo e Inversión (Avanzado)"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    # --- VISTA 1: VISIÓN GENERAL ---
+    if vista_actual == "📊 Visión General":
         st.markdown("<br>", unsafe_allow_html=True)
         g1, g2 = st.columns(2)
         
@@ -98,7 +107,8 @@ def render_dashboard_bi(historial):
             }
             st_echarts(options=option_gauge, height="350px", key="gauge_chart")
 
-    with tab_avanzado:
+    # --- VISTA 2: GRÁFICAS AVANZADAS ---
+    elif vista_actual == "🫧 Riesgo e Inversión (Avanzado)":
         st.markdown("<br>", unsafe_allow_html=True)
         c_adv1, c_adv2 = st.columns(2)
         
