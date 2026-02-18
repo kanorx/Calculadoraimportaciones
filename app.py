@@ -264,7 +264,7 @@ elif selected_nav == "Reportes & BI":
                 }
                 st_echarts(options=option_gauge, height="350px", key="gauge_chart")
 
-        # --- PESTAÑA 2: GRÁFICAS AVANZADAS ---
+# --- PESTAÑA 2: GRÁFICAS AVANZADAS ---
         with tab_avanzado:
             st.markdown("<br>", unsafe_allow_html=True)
             c_adv1, c_adv2 = st.columns(2)
@@ -272,15 +272,19 @@ elif selected_nav == "Reportes & BI":
             with c_adv1:
                 st.markdown("<h5 style='text-align:center; color:#091E42;'>🫧 Cuadrante Mágico (Viabilidad vs Costo)</h5>", unsafe_allow_html=True)
                 
-                # Preparamos los datos para las burbujas
-                max_ingreso = df_h['Ingreso ML (Res)'].max() if not df_h.empty else 1
+                # LA CORRECCIÓN: Convertimos todo a tipos nativos de Python (float y str)
+                max_ingreso = float(df_h['Ingreso ML (Res)'].max()) if not df_h.empty else 1.0
                 scatter_data = []
                 for _, row in df_h.iterrows():
-                    # Escalar tamaño visual de la burbuja (15px a 50px)
-                    b_size = (row['Ingreso ML (Res)'] / max_ingreso) * 40 + 15 if max_ingreso > 0 else 20
+                    costo_nativo = float(row['Costo Unitario (Res)'])
+                    viab_nativa = float(row['Viabilidad (Res)'])
+                    ingreso_nativo = float(row['Ingreso ML (Res)'])
+                    
+                    b_size = float((ingreso_nativo / max_ingreso) * 40 + 15) if max_ingreso > 0 else 20.0
+                    
                     scatter_data.append({
-                        "name": row['Producto'],
-                        "value": [round(row['Costo Unitario (Res)'], 0), round(row['Viabilidad (Res)'], 2)],
+                        "name": str(row['Producto']),
+                        "value": [round(costo_nativo, 0), round(viab_nativa, 2)],
                         "symbolSize": b_size,
                         "itemStyle": {"opacity": 0.8}
                     })
@@ -294,14 +298,14 @@ elif selected_nav == "Reportes & BI":
                     "yAxis": {"name": "Viabilidad (x)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
                     "series": [{"type": "scatter", "data": scatter_data, "itemStyle": {"color": "#2E5BFF"}}]
                 }
-                st_echarts(options=option_scatter, height="350px", key="scatter_chart")
+                st_echarts(options=option_scatter, height="350px", key="scatter_chart_fix")
                 
             with c_adv2:
                 st.markdown("<h5 style='text-align:center; color:#091E42;'>🍩 Distribución de Inversión por Método</h5>", unsafe_allow_html=True)
                 
-                # Agrupamos por método de transporte
+                # LA CORRECCIÓN: Forzamos el float() en el JSON del Donut Chart
                 metodos_data = df_h.groupby('Método')['Costo Unitario (Res)'].sum().reset_index()
-                pie_data = [{"value": row['Costo Unitario (Res)'], "name": row['Método']} for _, row in metodos_data.iterrows()]
+                pie_data = [{"value": float(row['Costo Unitario (Res)']), "name": str(row['Método'])} for _, row in metodos_data.iterrows()]
                 
                 option_donut = {
                     "tooltip": {"trigger": "item", "formatter": "{b}: ${c} ({d}%)"},
@@ -321,7 +325,7 @@ elif selected_nav == "Reportes & BI":
                         }
                     ]
                 }
-                st_echarts(options=option_donut, height="350px", key="donut_chart")
+                st_echarts(options=option_donut, height="350px", key="donut_chart_fix")
 
         # ---------------------------------------------------------
         # TABLA DE DATOS CON AgGrid
