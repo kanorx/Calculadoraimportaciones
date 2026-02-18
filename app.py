@@ -3,14 +3,15 @@ import pandas as pd
 import io
 import plotly.express as px
 
-# LIBRERÍAS DE UI 
+# LIBRERÍAS DE UI Y TABLAS AVANZADAS
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
+from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
 
-# MÓDULOS PROPIOS
+# MÓDULOS PROPIOS (LA ARQUITECTURA)
 from ui.design import inyectar_estilos, load_lottieurl
 from core.financial_api import fetch_trm
 from core.calculations import calc_avion, calc_barco
@@ -23,7 +24,7 @@ st.set_page_config(page_title="ImportPro Suite", layout="wide", page_icon="🌐"
 inyectar_estilos()
 
 # ==========================================
-# 2. MEMORIA DE ESTADO (Solución KeyError)
+# 2. MEMORIA DE ESTADO
 # ==========================================
 if 'historial' not in st.session_state: 
     st.session_state['historial'] = []
@@ -67,6 +68,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # 5. PESTAÑAS DEL DASHBOARD
 # ==========================================
 
+# --- AÉREO ---
 if selected_nav == "Aéreo":
     st.markdown("### ✈️ Importación Courier / Aéreo")
     with st.container(border=True):
@@ -94,6 +96,7 @@ if selected_nav == "Aéreo":
             r4.metric("Ratio Viabilidad", f"{res['viabilidad']:.2f}x")
             st.session_state['historial'].append({"Producto": n_p, "Método": "Avión", "Costo Unitario (Res)": res['unitario'], "Ingreso ML (Res)": res['ingreso_neto'], "Viabilidad (Res)": res['viabilidad']})
 
+# --- MARÍTIMO ---
 elif selected_nav == "Marítimo":
     st.markdown("### 🚢 Importación LCL Consolidado")
     with st.container(border=True):
@@ -123,6 +126,7 @@ elif selected_nav == "Marítimo":
             r4.metric("Ratio Viabilidad", f"{res['viabilidad']:.2f}x")
             st.session_state['historial'].append({"Producto": n_p, "Método": "Barco", "Costo Unitario (Res)": res['unitario'], "Ingreso ML (Res)": res['ingreso_neto'], "Viabilidad (Res)": res['viabilidad']})
 
+# --- CARGA MASIVA ---
 elif selected_nav == "Carga Masiva":
     st.markdown("### 📁 Carga Masiva (Excel)")
     st.info("Sube tu plantilla estandarizada para procesar lotes enteros.")
@@ -135,6 +139,7 @@ elif selected_nav == "Carga Masiva":
             st.success("✅ Lote procesado con éxito y agregado a los reportes.")
         except: st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
 
+# --- INTELIGENCIA DE MERCADO ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
     col_a, col_b = st.columns([1, 2])
@@ -168,6 +173,7 @@ elif selected_nav == "Inteligencia Mercado":
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
                 st.rerun()
 
+# --- REPORTES Y BI ---
 elif selected_nav == "Reportes & BI":
     st.markdown("### 📊 Business Intelligence & Exportación")
     if not st.session_state['historial']:
@@ -197,9 +203,31 @@ elif selected_nav == "Reportes & BI":
             fig2.update_layout(font_family="Inter", title_font_color="#091E42", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False), coloraxis_showscale=False, hovermode="x", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig2, use_container_width=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.dataframe(df_h, use_container_width=True, hide_index=True)
+        # ---------------------------------------------------------
+        # MAGIA DE AgGrid PARA LA TABLA
+        # ---------------------------------------------------------
+        st.markdown("<br>#### 📑 Registro Detallado de Simulaciones", unsafe_allow_html=True)
         
+        gb = GridOptionsBuilder.from_dataframe(df_h)
+        gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+        gb.configure_side_bar() 
+        gb.configure_default_column(editable=False, groupable=True)
+        gridOptions = gb.build()
+        
+        AgGrid(
+            df_h,
+            gridOptions=gridOptions,
+            enable_enterprise_modules=False,
+            allow_unsafe_jscode=True,
+            theme='alpine',
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+            height=400
+        )
+        # ---------------------------------------------------------
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # EXPORTACIÓN EXCEL
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
             df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
