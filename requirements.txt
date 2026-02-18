@@ -6,3 +6,4 @@ openpyxl
 streamlit-option-menu
 streamlit-lottie
 streamlit-aggrid
+streamlit-echarts
