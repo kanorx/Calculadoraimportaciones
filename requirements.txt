@@ -1,10 +1,9 @@
 streamlit
 pandas
 requests
-plotly
 openpyxl
-streamlit-elements
 streamlit-option-menu
 streamlit-lottie
 streamlit-aggrid
 streamlit-echarts
+streamlit-elements
