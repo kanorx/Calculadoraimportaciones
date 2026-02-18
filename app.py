@@ -5,7 +5,7 @@ import io
 import base64
 import plotly.express as px
 
-# LIBRERÍAS DE UI
+# LIBRERÍAS DE UI (Recuerda tenerlas en tu requirements.txt)
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 
@@ -15,7 +15,7 @@ from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
 
 # ==========================================
-# 1. CONFIGURACIÓN Y CSS "ANTI-DARK MODE"
+# 1. CONFIGURACIÓN INICIAL Y CSS "ANTI-DARK MODE"
 # ==========================================
 st.set_page_config(page_title="ImportPro Suite", layout="wide", page_icon="🌐")
 
@@ -30,9 +30,13 @@ lottie_logistics = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20
 
 st.markdown("""
     <style>
+    /* Forzar fondo claro en la app */
     .stApp { background-color: #F4F7FC !important; font-family: 'Inter', sans-serif; }
+    
+    /* Textos siempre oscuros */
     h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] { color: #091E42 !important; }
     
+    /* Cajas de texto blancas y limpias */
     .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {
         background-color: #ffffff !important;
         color: #091E42 !important;
@@ -44,6 +48,7 @@ st.markdown("""
         border: 2px solid #2E5BFF !important;
     }
     
+    /* Tarjetas de Métricas UI Pro */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         border-radius: 12px !important;
@@ -55,6 +60,7 @@ st.markdown("""
     div[data-testid="stMetric"]:hover { transform: translateY(-3px); }
     div[data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #2E5BFF !important; font-weight: 800 !important; }
 
+    /* Botones Premium */
     .stButton>button {
         width: 100% !important;
         border-radius: 10px !important;
@@ -69,8 +75,10 @@ st.markdown("""
     }
     .stButton>button:hover { box-shadow: 0 6px 15px rgba(46, 91, 255, 0.4) !important; transform: translateY(-2px); }
     
+    /* Globos de Chat limpios */
     .stChatMessage { border-radius: 15px; background: #ffffff !important; border: 1px solid #E1E5F2 !important; }
     
+    /* Ocultar rastro de Streamlit por defecto */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -78,21 +86,31 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. ESTADO Y TRM
+# 2. MEMORIA DE ESTADO (SOLUCIÓN AL KEYERROR)
+# ==========================================
+# ¡IMPORTANTE! Estas líneas evitan que la nube colapse al buscar variables que no existen.
+if 'historial' not in st.session_state: 
+    st.session_state['historial'] = []
+    
+if 'chat_log' not in st.session_state: 
+    st.session_state['chat_log'] = [{"role": "assistant", "content": "Sistema en línea. Soy tu copiloto de importaciones."}]
+
+# ==========================================
+# 3. CONEXIÓN TRM (ANTI-BLOQUEOS GUBERNAMENTALES)
 # ==========================================
 @st.cache_data(ttl=3600)
 def fetch_trm():
     try:
         url = "https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC"
-        # TRUCO: Nos "disfrazamos" de navegador Chrome para que el gobierno no nos bloquee
+        # Disfraz de navegador para saltar el firewall del gobierno
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        # Aumentamos el tiempo de espera a 10 segundos por si la página está lenta
-        respuesta = requests.get(url, headers=headers, timeout=10)
+        # Tiempo de espera extendido a 10 segundos
+        res = requests.get(url, headers=headers, timeout=10)
         
-        if respuesta.status_code == 200:
-            return float(respuesta.json()[0]['valor'])
+        if res.status_code == 200:
+            return float(res.json()[0]['valor'])
         else:
             return 4000.0
     except Exception as e: 
@@ -101,11 +119,11 @@ def fetch_trm():
 TRM_ACTUAL = fetch_trm()
 
 # ==========================================
-# 3. MOTOR IA (GEMINI 2.5 FLASH)
+# 4. MOTOR IA (GEMINI 2.5 FLASH MULTIMODAL)
 # ==========================================
 def call_openrouter_ai(prompt, image_input=None, task="legal"):
     try: key = st.secrets["OPENROUTER_API_KEY"]
-    except: return "⚠️ Error: Configura tu API Key en los secretos."
+    except: return "⚠️ Error: Configura tu API Key en los secretos (secrets.toml)."
 
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     
@@ -125,10 +143,10 @@ def call_openrouter_ai(prompt, image_input=None, task="legal"):
     try:
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=25)
         return res.json()['choices'][0]['message']['content'] if res.status_code == 200 else f"Error API: {res.status_code}"
-    except: return "❌ Sin conexión a la IA."
+    except: return "❌ Sin conexión a la IA. Revisa tu internet o la API Key."
 
 # ==========================================
-# 4. FUNCIONES FINANCIERAS
+# 5. FUNCIONES FINANCIERAS DE ADUANAS
 # ==========================================
 def calc_avion(p_u, q, f_u, ar, iv, adm, p_v, c_ml):
     base_cop = (p_u * TRM_ACTUAL * q) + (f_u * TRM_ACTUAL)
@@ -147,13 +165,13 @@ def calc_barco(p_u, q, env, tc, alt, anc, lar, caj, cbm_v, fn, p_v, c_ml):
     return {"costo_total": c_tot, "costo_cbm": c_nac, "volumen": vol, "unitario": c_u, "ingreso_neto": i_n, "viabilidad": (i_n / c_u if c_u > 0 else 0)}
 
 # ==========================================
-# 5. HEADER Y MENÚ DE NAVEGACIÓN
+# 6. HEADER Y MENÚ DE NAVEGACIÓN
 # ==========================================
 col_hero1, col_hero2 = st.columns([3, 1])
 with col_hero1:
     st.title("🌐 ImportPro Suite")
-    # CORRECCIÓN AQUÍ: Quitamos las comillas invertidas que rompían el HTML
-    st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** `Online`", unsafe_allow_html=True)
+    # HTML Limpio para la TRM (Sin comillas invertidas que lo rompan)
+    st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** 🟢 Online", unsafe_allow_html=True)
 with col_hero2:
     if lottie_logistics: st_lottie(lottie_logistics, height=120, key="hero")
 
@@ -175,7 +193,7 @@ selected_nav = option_menu(
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# 6. PÁGINAS DEL DASHBOARD
+# 7. RUTAS DEL DASHBOARD (PESTAÑAS)
 # ==========================================
 
 # --- AÉREO ---
@@ -237,17 +255,17 @@ elif selected_nav == "Marítimo":
 # --- CARGA MASIVA ---
 elif selected_nav == "Carga Masiva":
     st.markdown("### 📁 Carga Masiva (Excel)")
-    st.info("Sube tu plantilla estandarizada para procesar lotes enteros.")
+    st.info("Sube tu plantilla estandarizada para procesar lotes enteros de productos simultáneamente.")
     up_file = st.file_uploader("", type=["xlsx"])
     if up_file and st.button("🚀 Ejecutar Análisis Masivo"):
         try:
             df_up = pd.read_excel(up_file).fillna(0)
             for _, row in df_up.iterrows():
                 st.session_state['historial'].append({"Producto": row.get('Producto', 'Lote Masivo'), "Método": "Masivo", "Costo Unitario (Res)": 50000, "Ingreso ML (Res)": 80000, "Viabilidad (Res)": 1.6})
-            st.success("✅ Lote procesado con éxito.")
-        except: st.error("Error leyendo el archivo.")
+            st.success("✅ Lote procesado con éxito y agregado a los reportes.")
+        except: st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
 
-# --- INTELIGENCIA DE MERCADO (CON CANDADO DE SEGURIDAD) ---
+# --- INTELIGENCIA DE MERCADO (CON PAYWALL / CANDADO VIP) ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
     
@@ -260,24 +278,27 @@ elif selected_nav == "Inteligencia Mercado":
         img_up = None
         clave_ingresada = ""
         
+        # El candado de seguridad aparece si el usuario selecciona SEO
         if "SEO" in m_switch:
             with st.container(border=True):
-                st.warning("🔒 **Acceso Restringido**\nEsta función procesa imágenes y consume recursos de alto rendimiento.")
+                st.warning("🔒 **Acceso Restringido**\nEsta función procesa imágenes y consume tokens de alto rendimiento.")
                 clave_ingresada = st.text_input("Ingresa tu Clave Premium:", type="password")
                 img_up = st.file_uploader("📸 Subir Pantallazo (AliExpress)", type=["jpg", "png"])
     
     with col_b:
         with st.container(border=True, height=450):
+            # Aquí es donde el KeyError ocurría si chat_log no existía, pero ya lo solucionamos arriba.
             for m in st.session_state['chat_log']:
                 with st.chat_message(m["role"]): st.markdown(m["content"])
         
         if u_input := st.chat_input("Escribe tu consulta aquí..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
             
+            # Validación de la Clave Premium
             CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
             
             if "SEO" in m_switch and clave_ingresada != CLAVE_VERDADERA:
-                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta. No se procesó la solicitud para proteger el saldo de la API."
+                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta. Solicitud cancelada para proteger el saldo de la API."
                 st.session_state['chat_log'].append({"role": "assistant", "content": error_msg})
                 st.rerun()
             else:
@@ -286,7 +307,7 @@ elif selected_nav == "Inteligencia Mercado":
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
                 st.rerun()
 
-# --- REPORTES Y BI (GRÁFICAS MEJORADAS) ---
+# --- REPORTES Y BI (PLOTLY AVANZADO) ---
 elif selected_nav == "Reportes & BI":
     st.markdown("### 📊 Business Intelligence & Exportación")
     
@@ -308,12 +329,14 @@ elif selected_nav == "Reportes & BI":
         g1, g2 = st.columns(2)
         
         with g1:
+            # Gráfica Financiera
             fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero: Costo vs Ingreso")
             fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
             fig1.update_layout(font_family="Inter", title_font_color="#091E42", legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False), hovermode="x unified", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig1, use_container_width=True)
             
         with g2:
+            # Gráfica de Semáforo
             fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', text_auto='.2f', color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], title="⚖️ Índice de Rentabilidad")
             fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)", annotation_position="top left", annotation_font_color="#2E5BFF")
             fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
@@ -323,6 +346,7 @@ elif selected_nav == "Reportes & BI":
         st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(df_h, use_container_width=True, hide_index=True)
         
+        # Lógica de Exportación a Excel Profesional
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
             df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
@@ -333,6 +357,8 @@ elif selected_nav == "Reportes & BI":
                 cell.alignment = Alignment(horizontal='center')
             for col in ws.columns:
                  ws.column_dimensions[col[0].column_letter].width = 20
+            
+            # Semáforo de colores en el Excel
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='greaterThan', formula=['1.5'], fill=PatternFill(start_color="C6EFCE", fill_type="solid")))
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='lessThan', formula=['1.2'], fill=PatternFill(start_color="FFC7CE", fill_type="solid")))
             
