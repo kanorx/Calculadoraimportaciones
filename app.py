@@ -5,7 +5,7 @@ import io
 import base64
 import plotly.express as px
 
-# LIBRERÍAS DE UI (Recuerda tenerlas en tu requirements.txt)
+# LIBRERÍAS DE UI
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 
@@ -28,36 +28,22 @@ def load_lottieurl(url: str):
 
 lottie_logistics = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_s2l79gze.json")
 
-# Inyección de CSS agresiva para forzar Tema Claro y ocultar barras negras
 st.markdown("""
     <style>
-    /* Forzar fondo claro en toda la app */
     .stApp { background-color: #F4F7FC !important; font-family: 'Inter', sans-serif; }
+    h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] { color: #091E42 !important; }
     
-    /* Forzar color de texto oscuro para que no se pierda en el fondo blanco */
-    h1, h2, h3, h4, p, span, label, div[data-testid="stMarkdownContainer"] { 
-        color: #091E42 !important; 
-    }
-    
-    /* Arreglar Inputs y TextAreas (Cajas blancas, letras oscuras SIEMPRE) */
-    .stTextInput>div>div>input, 
-    .stNumberInput>div>div>input, 
-    .stTextArea>div>div>textarea {
+    .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {
         background-color: #ffffff !important;
         color: #091E42 !important;
-        -webkit-text-fill-color: #091E42 !important; /* Soporte para navegadores basados en WebKit */
+        -webkit-text-fill-color: #091E42 !important;
         border: 1px solid #DCDFE6 !important;
         border-radius: 8px !important;
     }
-    
-    /* Efecto foco en los inputs */
-    .stTextInput>div>div>input:focus, 
-    .stNumberInput>div>div>input:focus,
-    .stTextArea>div>div>textarea:focus {
+    .stTextInput>div>div>input:focus, .stNumberInput>div>div>input:focus, .stTextArea>div>div>textarea:focus {
         border: 2px solid #2E5BFF !important;
     }
     
-    /* Tarjetas de Métricas Premium */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         border-radius: 12px !important;
@@ -69,7 +55,6 @@ st.markdown("""
     div[data-testid="stMetric"]:hover { transform: translateY(-3px); }
     div[data-testid="stMetricValue"] { font-size: 1.8rem !important; color: #2E5BFF !important; font-weight: 800 !important; }
 
-    /* Botones Modernos */
     .stButton>button {
         width: 100% !important;
         border-radius: 10px !important;
@@ -84,10 +69,8 @@ st.markdown("""
     }
     .stButton>button:hover { box-shadow: 0 6px 15px rgba(46, 91, 255, 0.4) !important; transform: translateY(-2px); }
     
-    /* Chat y Contenedores */
     .stChatMessage { border-radius: 15px; background: #ffffff !important; border: 1px solid #E1E5F2 !important; }
     
-    /* Ocultar header y footer inútiles de Streamlit */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -162,14 +145,12 @@ def calc_barco(p_u, q, env, tc, alt, anc, lar, caj, cbm_v, fn, p_v, c_ml):
 col_hero1, col_hero2 = st.columns([3, 1])
 with col_hero1:
     st.title("🌐 ImportPro Suite")
-    # AQUÍ ESTÁ EL CAMBIO: Quitamos los backticks (`) para que el HTML funcione
-    st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** 🟢 Online (Gemini Flash)", unsafe_allow_html=True)
+    st.markdown(f"**Indicador TRM Hoy:** `<span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span>` | **IA:** `Online`", unsafe_allow_html=True)
 with col_hero2:
     if lottie_logistics: st_lottie(lottie_logistics, height=120, key="hero")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Menú horizontal con streamlit-option-menu
 selected_nav = option_menu(
     menu_title=None,
     options=["Aéreo", "Marítimo", "Carga Masiva", "Inteligencia Mercado", "Reportes & BI"],
@@ -254,20 +235,29 @@ elif selected_nav == "Carga Masiva":
         try:
             df_up = pd.read_excel(up_file).fillna(0)
             for _, row in df_up.iterrows():
-                # Lógica simplificada de inserción
                 st.session_state['historial'].append({"Producto": row.get('Producto', 'Lote Masivo'), "Método": "Masivo", "Costo Unitario (Res)": 50000, "Ingreso ML (Res)": 80000, "Viabilidad (Res)": 1.6})
             st.success("✅ Lote procesado con éxito.")
         except: st.error("Error leyendo el archivo.")
 
-# --- INTELIGENCIA DE MERCADO ---
+# --- INTELIGENCIA DE MERCADO (CON CANDADO DE SEGURIDAD) ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
     
     col_a, col_b = st.columns([1, 2])
+    
     with col_a:
-        m_switch = st.radio("Herramienta activa:", ["🧑‍⚖️ Aranceles y Aduanas", "🚀 Optimización SEO Mercado Libre"])
+        m_switch = st.radio("Herramienta activa:", ["🧑‍⚖️ Aranceles y Aduanas (Gratis)", "🚀 Optimización SEO (Premium)"])
         st.markdown("<br>", unsafe_allow_html=True)
-        img_up = st.file_uploader("📸 Subir Pantallazo (Solo SEO)", type=["jpg", "png"]) if "SEO" in m_switch else None
+        
+        # Lógica de seguridad: Solo mostramos la subida de imagen y la clave si elige SEO
+        img_up = None
+        clave_ingresada = ""
+        
+        if "SEO" in m_switch:
+            with st.container(border=True):
+                st.warning("🔒 **Acceso Restringido**\nEsta función procesa imágenes y consume recursos de alto rendimiento.")
+                clave_ingresada = st.text_input("Ingresa tu Clave Premium:", type="password")
+                img_up = st.file_uploader("📸 Subir Pantallazo (AliExpress)", type=["jpg", "png"])
     
     with col_b:
         with st.container(border=True, height=450):
@@ -276,12 +266,23 @@ elif selected_nav == "Inteligencia Mercado":
         
         if u_input := st.chat_input("Escribe tu consulta aquí..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
-            with st.spinner("IA Procesando datos..."):
-                resp = call_openrouter_ai(u_input, image_input=img_up, task="legal" if "Aduanas" in m_switch else "marketing")
-                st.session_state['chat_log'].append({"role": "assistant", "content": resp})
-            st.rerun()
+            
+            # --- VALIDACIÓN DEL CANDADO ---
+            # Busca la clave en tus secretos. Si no existe, usa "12345" por defecto.
+            CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
+            
+            if "SEO" in m_switch and clave_ingresada != CLAVE_VERDADERA:
+                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta. No se procesó la solicitud para proteger el saldo de la API."
+                st.session_state['chat_log'].append({"role": "assistant", "content": error_msg})
+                st.rerun()
+            else:
+                # Si es aduanas (gratis) o si es SEO y la clave es correcta, ejecutamos la IA
+                with st.spinner("IA Procesando datos de alto rendimiento..."):
+                    resp = call_openrouter_ai(u_input, image_input=img_up, task="legal" if "Aduanas" in m_switch else "marketing")
+                    st.session_state['chat_log'].append({"role": "assistant", "content": resp})
+                st.rerun()
 
-# --- REPORTES Y BI ---
+# --- REPORTES Y BI (GRÁFICAS MEJORADAS) ---
 elif selected_nav == "Reportes & BI":
     st.markdown("### 📊 Business Intelligence & Exportación")
     
@@ -291,7 +292,6 @@ elif selected_nav == "Reportes & BI":
     else:
         df_h = pd.DataFrame(st.session_state['historial'])
         
-        # --- TARJETAS SUPERIORES ---
         with st.container():
             col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
             col_metrics1.metric("Total SKU Analizados", len(df_h))
@@ -301,67 +301,24 @@ elif selected_nav == "Reportes & BI":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- GRÁFICAS PRO CON PLOTLY ---
         g1, g2 = st.columns(2)
         
         with g1:
-            # Gráfica 1: Balance Financiero
-            fig1 = px.bar(
-                df_h, 
-                x='Producto', 
-                y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], 
-                barmode='group', 
-                text_auto='.2s', # Muestra números abreviados (ej. 150k)
-                color_discrete_sequence=['#FF4B4B', '#00E676'], # Rojo alerta y Verde éxito
-                title="💰 Balance Financiero: Costo vs Ingreso"
-            )
+            fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero: Costo vs Ingreso")
             fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
-            fig1.update_layout(
-                font_family="Inter",
-                title_font_size=18,
-                title_font_color="#091E42",
-                legend_title_text="",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), # Leyenda arriba
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(showgrid=False, title=""),
-                yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False),
-                hovermode="x unified", # Tarjeta de hover elegante
-                margin=dict(t=60, b=20, l=20, r=20)
-            )
+            fig1.update_layout(font_family="Inter", title_font_color="#091E42", legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False), hovermode="x unified", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig1, use_container_width=True)
             
         with g2:
-            # Gráfica 2: Semáforo de Viabilidad
-            fig2 = px.bar(
-                df_h, 
-                x='Producto', 
-                y='Viabilidad (Res)', 
-                color='Viabilidad (Res)',
-                text_auto='.2f', # Muestra el ratio exacto con 2 decimales
-                color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], # Escala de semáforo
-                title="⚖️ Índice de Rentabilidad"
-            )
+            fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', text_auto='.2f', color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], title="⚖️ Índice de Rentabilidad")
             fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)", annotation_position="top left", annotation_font_color="#2E5BFF")
             fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
-            fig2.update_layout(
-                font_family="Inter",
-                title_font_size=18,
-                title_font_color="#091E42",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(showgrid=False, title=""),
-                yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False),
-                coloraxis_showscale=False, # Oculta la fea barra de colores lateral
-                hovermode="x",
-                margin=dict(t=60, b=20, l=20, r=20)
-            )
+            fig2.update_layout(font_family="Inter", title_font_color="#091E42", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False), coloraxis_showscale=False, hovermode="x", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig2, use_container_width=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(df_h, use_container_width=True, hide_index=True)
         
-        # --- EXPORTACIÓN EXCEL PRO ---
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
             df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
@@ -370,11 +327,8 @@ elif selected_nav == "Reportes & BI":
                 cell.fill = PatternFill(start_color="2E5BFF", fill_type="solid")
                 cell.font = Font(color="FFFFFF", bold=True)
                 cell.alignment = Alignment(horizontal='center')
-            
             for col in ws.columns:
-                 col_letter = col[0].column_letter
-                 ws.column_dimensions[col_letter].width = 20
-                 
+                 ws.column_dimensions[col[0].column_letter].width = 20
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='greaterThan', formula=['1.5'], fill=PatternFill(start_color="C6EFCE", fill_type="solid")))
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='lessThan', formula=['1.2'], fill=PatternFill(start_color="FFC7CE", fill_type="solid")))
             
