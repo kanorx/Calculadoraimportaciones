@@ -119,11 +119,11 @@ def render_dashboard_bi(historial):
                 ingreso_nativo = float(row['Ingreso ML (Res)'])
                 b_size = float((ingreso_nativo / max_ingreso) * 40 + 15) if max_ingreso > 0 else 20.0
                 
-                # EL TRUCO HTML
-                texto_flotante = f"<b style='font-size:14px; color:#2E5BFF;'>{str(row['Producto'])}</b><br/>💰 Costo: ${costo_nativo:,.0f} COP<br/>⚖️ Viabilidad: {viab_nativa:.2f}x"
+                # LA SOLUCIÓN: Texto limpio, elegante y sin HTML para evitar el bloqueo del escudo de ECharts
+                texto_limpio = f"{str(row['Producto'])}  •  💰 ${costo_nativo:,.0f} COP  •  ⚖️ {viab_nativa:.2f}x"
                 
                 scatter_data.append({
-                    "name": texto_flotante,
+                    "name": texto_limpio,
                     "value": [round(costo_nativo, 0), round(viab_nativa, 2)],
                     "symbolSize": b_size,
                     "itemStyle": {"opacity": 0.8}
