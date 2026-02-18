@@ -12,7 +12,7 @@ from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
 from streamlit_echarts import st_echarts
-from streamlit_elements import elements, mui  # <--- MAGIA DE MATERIAL UI
+from streamlit_elements import elements, mui
 
 # ==========================================
 # MÓDULOS PROPIOS (LA ARQUITECTURA)
@@ -189,17 +189,15 @@ elif selected_nav == "Reportes & BI":
         avg_viab = df_h['Viabilidad (Res)'].mean()
 
         # ---------------------------------------------------------
-        # TARJETAS DE MÉTRICAS CON MATERIAL UI (STREAMLIT-ELEMENTS)
+        # TARJETAS DE MÉTRICAS (MATERIAL UI)
         # ---------------------------------------------------------
         with elements("dashboard_metrics"):
             with mui.Stack(direction="row", spacing=3, sx={"mb": 4, "mt": 2}):
                 
-                # Tarjeta 1: Total SKU
                 with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
                     mui.Typography("Total SKU Analizados", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
                     mui.Typography(f"{len(df_h)}", variant="h3", sx={"color": "#091E42", "fontWeight": 800})
                 
-                # Tarjeta 2: Viabilidad
                 color_viab = "#00E676" if avg_viab >= 1.5 else ("#FFD166" if avg_viab >= 1.2 else "#FF4B4B")
                 with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
                     mui.Typography("Viabilidad Promedio", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
@@ -207,7 +205,6 @@ elif selected_nav == "Reportes & BI":
                         mui.Typography(f"{avg_viab:.2f}x", variant="h3", sx={"color": color_viab, "fontWeight": 800})
                         mui.Typography("Meta: 1.5x", variant="caption", sx={"color": "#A5ADBA", "fontWeight": 500})
                         
-                # Tarjeta 3: Costo Promedio
                 with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
                     mui.Typography("Costo Unitario Promedio", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
                     mui.Typography(f"${df_h['Costo Unitario (Res)'].mean():,.0f}", variant="h3", sx={"color": "#2E5BFF", "fontWeight": 800})
@@ -215,55 +212,116 @@ elif selected_nav == "Reportes & BI":
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ---------------------------------------------------------
-        # GRÁFICOS CON ECHARTS
+        # PESTAÑAS PARA ORGANIZAR LAS GRÁFICAS ECHARTS
         # ---------------------------------------------------------
-        g1, g2 = st.columns(2)
+        tab_general, tab_avanzado = st.tabs(["📊 Visión General", "🫧 Riesgo e Inversión (Avanzado)"])
         
-        with g1:
-            st.markdown("<h5 style='text-align:center; color:#091E42;'>💰 Balance Financiero: Costo vs Ingreso</h5>", unsafe_allow_html=True)
-            productos = df_h['Producto'].tolist()
-            costos = df_h['Costo Unitario (Res)'].round(0).tolist()
-            ingresos = df_h['Ingreso ML (Res)'].round(0).tolist()
+        # --- PESTAÑA 1: VISIÓN GENERAL ---
+        with tab_general:
+            st.markdown("<br>", unsafe_allow_html=True)
+            g1, g2 = st.columns(2)
             
-            option_bar = {
-                "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
-                "legend": {"data": ["Costo Unitario", "Ingreso Neto"], "bottom": 0},
-                "grid": {"left": "3%", "right": "4%", "bottom": "15%", "containLabel": True},
-                "xAxis": {"type": "category", "data": productos, "axisLine": {"show": False}},
-                "yAxis": {"type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
-                "color": ["#FF4B4B", "#00E676"],
-                "series": [
-                    {"name": "Costo Unitario", "type": "bar", "data": costos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}, "barGap": "15%"},
-                    {"name": "Ingreso Neto", "type": "bar", "data": ingresos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}}
-                ]
-            }
-            st_echarts(options=option_bar, height="350px")
+            with g1:
+                st.markdown("<h5 style='text-align:center; color:#091E42;'>💰 Balance Financiero: Costo vs Ingreso</h5>", unsafe_allow_html=True)
+                productos = df_h['Producto'].tolist()
+                costos = df_h['Costo Unitario (Res)'].round(0).tolist()
+                ingresos = df_h['Ingreso ML (Res)'].round(0).tolist()
+                
+                option_bar = {
+                    "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+                    "legend": {"data": ["Costo Unitario", "Ingreso Neto"], "bottom": 0},
+                    "grid": {"left": "3%", "right": "4%", "bottom": "15%", "containLabel": True},
+                    "xAxis": {"type": "category", "data": productos, "axisLine": {"show": False}},
+                    "yAxis": {"type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
+                    "color": ["#FF4B4B", "#00E676"],
+                    "series": [
+                        {"name": "Costo Unitario", "type": "bar", "data": costos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}, "barGap": "15%"},
+                        {"name": "Ingreso Neto", "type": "bar", "data": ingresos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}}
+                    ]
+                }
+                st_echarts(options=option_bar, height="350px", key="bar_chart")
+                
+            with g2:
+                st.markdown("<h5 style='text-align:center; color:#091E42;'>⚖️ Tacómetro de Rentabilidad Promedio</h5>", unsafe_allow_html=True)
+                option_gauge = {
+                    "tooltip": {"formatter": "{a} <br/>{b} : {c}x"},
+                    "series": [
+                        {
+                            "name": "Rentabilidad",
+                            "type": "gauge",
+                            "min": 0, "max": 3, "splitNumber": 3,
+                            "axisLine": {
+                                "lineStyle": {"width": 18, "color": [[0.4, "#FF4B4B"], [0.5, "#FFD166"], [1, "#00E676"]]}
+                            },
+                            "pointer": {"itemStyle": {"color": "auto"}},
+                            "axisTick": {"distance": -20, "length": 8, "lineStyle": {"color": "#fff", "width": 2}},
+                            "splitLine": {"distance": -20, "length": 20, "lineStyle": {"color": "#fff", "width": 3}},
+                            "axisLabel": {"color": "inherit", "distance": 30, "fontSize": 12},
+                            "detail": {"valueAnimation": True, "formatter": "{value}x", "color": "inherit", "fontSize": 28, "fontWeight": "bold", "padding": [40, 0, 0, 0]},
+                            "data": [{"value": round(avg_viab, 2), "name": "Ratio"}]
+                        }
+                    ]
+                }
+                st_echarts(options=option_gauge, height="350px", key="gauge_chart")
+
+        # --- PESTAÑA 2: GRÁFICAS AVANZADAS ---
+        with tab_avanzado:
+            st.markdown("<br>", unsafe_allow_html=True)
+            c_adv1, c_adv2 = st.columns(2)
             
-        with g2:
-            st.markdown("<h5 style='text-align:center; color:#091E42;'>⚖️ Tacómetro de Rentabilidad Promedio</h5>", unsafe_allow_html=True)
-            option_gauge = {
-                "tooltip": {"formatter": "{a} <br/>{b} : {c}x"},
-                "series": [
-                    {
-                        "name": "Rentabilidad",
-                        "type": "gauge",
-                        "min": 0, "max": 3, "splitNumber": 3,
-                        "axisLine": {
-                            "lineStyle": {
-                                "width": 18,
-                                "color": [[0.4, "#FF4B4B"], [0.5, "#FFD166"], [1, "#00E676"]]
-                            }
-                        },
-                        "pointer": {"itemStyle": {"color": "auto"}},
-                        "axisTick": {"distance": -20, "length": 8, "lineStyle": {"color": "#fff", "width": 2}},
-                        "splitLine": {"distance": -20, "length": 20, "lineStyle": {"color": "#fff", "width": 3}},
-                        "axisLabel": {"color": "inherit", "distance": 30, "fontSize": 12},
-                        "detail": {"valueAnimation": True, "formatter": "{value}x", "color": "inherit", "fontSize": 28, "fontWeight": "bold", "padding": [40, 0, 0, 0]},
-                        "data": [{"value": round(avg_viab, 2), "name": "Ratio"}]
-                    }
-                ]
-            }
-            st_echarts(options=option_gauge, height="350px")
+            with c_adv1:
+                st.markdown("<h5 style='text-align:center; color:#091E42;'>🫧 Cuadrante Mágico (Viabilidad vs Costo)</h5>", unsafe_allow_html=True)
+                
+                # Preparamos los datos para las burbujas
+                max_ingreso = df_h['Ingreso ML (Res)'].max() if not df_h.empty else 1
+                scatter_data = []
+                for _, row in df_h.iterrows():
+                    # Escalar tamaño visual de la burbuja (15px a 50px)
+                    b_size = (row['Ingreso ML (Res)'] / max_ingreso) * 40 + 15 if max_ingreso > 0 else 20
+                    scatter_data.append({
+                        "name": row['Producto'],
+                        "value": [round(row['Costo Unitario (Res)'], 0), round(row['Viabilidad (Res)'], 2)],
+                        "symbolSize": b_size,
+                        "itemStyle": {"opacity": 0.8}
+                    })
+                
+                option_scatter = {
+                    "tooltip": {
+                        "trigger": "item",
+                        "formatter": "{b}<br/>Costo: ${c[0]}<br/>Viabilidad: {c[1]}x"
+                    },
+                    "xAxis": {"name": "Costo Unitario (COP)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
+                    "yAxis": {"name": "Viabilidad (x)", "type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
+                    "series": [{"type": "scatter", "data": scatter_data, "itemStyle": {"color": "#2E5BFF"}}]
+                }
+                st_echarts(options=option_scatter, height="350px", key="scatter_chart")
+                
+            with c_adv2:
+                st.markdown("<h5 style='text-align:center; color:#091E42;'>🍩 Distribución de Inversión por Método</h5>", unsafe_allow_html=True)
+                
+                # Agrupamos por método de transporte
+                metodos_data = df_h.groupby('Método')['Costo Unitario (Res)'].sum().reset_index()
+                pie_data = [{"value": row['Costo Unitario (Res)'], "name": row['Método']} for _, row in metodos_data.iterrows()]
+                
+                option_donut = {
+                    "tooltip": {"trigger": "item", "formatter": "{b}: ${c} ({d}%)"},
+                    "legend": {"bottom": "0%", "left": "center"},
+                    "series": [
+                        {
+                            "name": "Inversión por Método",
+                            "type": "pie",
+                            "radius": ["40%", "70%"],
+                            "avoidLabelOverlap": False,
+                            "itemStyle": {"borderRadius": 10, "borderColor": "#ffffff", "borderWidth": 2},
+                            "label": {"show": False, "position": "center"},
+                            "emphasis": {"label": {"show": True, "fontSize": "20", "fontWeight": "bold"}},
+                            "labelLine": {"show": False},
+                            "data": pie_data,
+                            "color": ["#2E5BFF", "#00C6FF", "#FFD166", "#FF4B4B"]
+                        }
+                    ]
+                }
+                st_echarts(options=option_donut, height="350px", key="donut_chart")
 
         # ---------------------------------------------------------
         # TABLA DE DATOS CON AgGrid
