@@ -5,7 +5,7 @@ import io
 import base64
 import plotly.express as px
 
-# LIBRERÍAS DE UI (Recuerda tenerlas en tu requirements.txt)
+# LIBRERÍAS DE UI 
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 
@@ -86,9 +86,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MEMORIA DE ESTADO 
+# 2. MEMORIA DE ESTADO
 # ==========================================
-# ¡IMPORTANTE! Estas líneas evitan que la nube colapse al buscar variables que no existen.
 if 'historial' not in st.session_state: 
     st.session_state['historial'] = []
     
@@ -96,20 +95,16 @@ if 'chat_log' not in st.session_state:
     st.session_state['chat_log'] = [{"role": "assistant", "content": "Sistema en línea. Soy tu copiloto de importaciones."}]
 
 # ==========================================
-# 3. CONEXIÓN TRM (AB)
+# 3. CONEXIÓN TRM OFICIAL
 # ==========================================
-
 @st.cache_data(ttl=3600)
 def fetch_trm():
     try:
         url = "https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC"
-        # Disfraz de navegador para saltar el firewall del gobierno
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        # Tiempo de espera extendido a 10 segundos
         res = requests.get(url, headers=headers, timeout=10)
-        
         if res.status_code == 200:
             return float(res.json()[0]['valor'])
         else:
@@ -120,7 +115,7 @@ def fetch_trm():
 TRM_ACTUAL = fetch_trm()
 
 # ==========================================
-# 4. MOTOR IA (GEMINI 2.5 FLASH MULTIMODAL)
+# 4. MOTOR IA (GEMINI 2.5 FLASH)
 # ==========================================
 def call_openrouter_ai(prompt, image_input=None, task="legal"):
     try: key = st.secrets["OPENROUTER_API_KEY"]
@@ -147,7 +142,7 @@ def call_openrouter_ai(prompt, image_input=None, task="legal"):
     except: return "❌ Sin conexión a la IA. Revisa tu internet o la API Key."
 
 # ==========================================
-# 5. FUNCIONES FINANCIERAS DE ADUANAS
+# 5. FUNCIONES FINANCIERAS
 # ==========================================
 def calc_avion(p_u, q, f_u, ar, iv, adm, p_v, c_ml):
     base_cop = (p_u * TRM_ACTUAL * q) + (f_u * TRM_ACTUAL)
@@ -166,12 +161,11 @@ def calc_barco(p_u, q, env, tc, alt, anc, lar, caj, cbm_v, fn, p_v, c_ml):
     return {"costo_total": c_tot, "costo_cbm": c_nac, "volumen": vol, "unitario": c_u, "ingreso_neto": i_n, "viabilidad": (i_n / c_u if c_u > 0 else 0)}
 
 # ==========================================
-# 6. HEADER Y MENÚ DE NAVEGACIÓN
+# 6. HEADER Y NAVEGACIÓN
 # ==========================================
 col_hero1, col_hero2 = st.columns([3, 1])
 with col_hero1:
     st.title("🌐 ImportPro Suite")
-    # HTML Limpio para la TRM (Sin comillas invertidas que lo rompan)
     st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** 🟢 Online", unsafe_allow_html=True)
 with col_hero2:
     if lottie_logistics: st_lottie(lottie_logistics, height=120, key="hero")
@@ -194,7 +188,7 @@ selected_nav = option_menu(
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# 7. RUTAS DEL DASHBOARD (PESTAÑAS)
+# 7. PESTAÑAS DEL DASHBOARD
 # ==========================================
 
 # --- AÉREO ---
@@ -203,17 +197,18 @@ if selected_nav == "Aéreo":
     with st.container(border=True):
         c1, c2, c3 = st.columns(3)
         with c1:
-            n_p = st.text_input("Producto", "Smartwatch Gen5")
-            p_u = st.number_input("Precio Unit (USD)", 15.0)
-            q = st.number_input("Cantidad Total", 100)
+            n_p = st.text_input("Producto", value="Smartwatch Gen5")
+            # Corrección aplicada: value y min_value explícitos
+            p_u = st.number_input("Precio Unit (USD)", value=15.0, min_value=0.0)
+            q = st.number_input("Cantidad Total", value=100, min_value=1)
         with c2:
-            f_u = st.number_input("Flete Total (USD)", 250.0)
-            ar = st.number_input("Arancel Decimal (0.10)", 0.10)
-            iv = st.number_input("IVA Decimal (0.19)", 0.19)
+            f_u = st.number_input("Flete Total (USD)", value=250.0, min_value=0.0)
+            ar = st.number_input("Arancel Decimal (0.10)", value=0.10, min_value=0.0)
+            iv = st.number_input("IVA Decimal (0.19)", value=0.19, min_value=0.0)
         with c3:
-            adm = st.number_input("Gasto Agente (COP)", 120000.0)
-            p_v = st.number_input("P. Venta ML (COP)", 180000.0)
-            c_ml = st.number_input("Comisión ML %", 0.24)
+            adm = st.number_input("Gasto Agente (COP)", value=120000.0, min_value=0.0)
+            p_v = st.number_input("P. Venta ML (COP)", value=180000.0, min_value=0.0)
+            c_ml = st.number_input("Comisión ML %", value=0.24, min_value=0.0)
 
         if st.button("Calcular Rentabilidad Aérea 🚀"):
             res = calc_avion(p_u, q, f_u, ar, iv, adm, p_v, c_ml)
@@ -231,16 +226,19 @@ elif selected_nav == "Marítimo":
     with st.container(border=True):
         c1, c2, c3 = st.columns(3)
         with c1:
-            n_p = st.text_input("Producto", "Sillas Gamer")
-            p_u = st.number_input("Precio Unit (USD)", 45.0)
-            q = st.number_input("Cantidad", 50)
+            n_p = st.text_input("Producto", value="Sillas Gamer")
+            # Corrección aplicada: value y min_value explícitos
+            p_u = st.number_input("Precio Unit (USD)", value=45.0, min_value=0.0)
+            q = st.number_input("Cantidad", value=50, min_value=1)
         with c2:
-            env = st.number_input("Envío Puerto (USD)", 30.0)
-            alt, anc, lar = st.number_input("Alto cm", 70.0), st.number_input("Ancho cm", 60.0), st.number_input("Largo cm", 20.0)
+            env = st.number_input("Envío Puerto (USD)", value=30.0, min_value=0.0)
+            alt = st.number_input("Alto cm", value=70.0, min_value=0.0)
+            anc = st.number_input("Ancho cm", value=60.0, min_value=0.0)
+            lar = st.number_input("Largo cm", value=20.0, min_value=0.0)
         with c3:
-            caj = st.number_input("Cajas", 25)
-            cbm_v = st.number_input("CBM Nacionalización", 2400000.0)
-            p_v = st.number_input("P. Venta ML (COP)", 650000.0)
+            caj = st.number_input("Cajas", value=25, min_value=1)
+            cbm_v = st.number_input("CBM Nacionalización", value=2400000.0, min_value=0.0)
+            p_v = st.number_input("P. Venta ML (COP)", value=650000.0, min_value=0.0)
 
         if st.button("Calcular Rentabilidad Marítima 🌊"):
             res = calc_barco(p_u, q, env, 0.03, alt, anc, lar, caj, cbm_v, 200000.0, p_v, 0.24)
@@ -256,7 +254,7 @@ elif selected_nav == "Marítimo":
 # --- CARGA MASIVA ---
 elif selected_nav == "Carga Masiva":
     st.markdown("### 📁 Carga Masiva (Excel)")
-    st.info("Sube tu plantilla estandarizada para procesar lotes enteros de productos simultáneamente.")
+    st.info("Sube tu plantilla estandarizada para procesar lotes enteros simultáneamente.")
     up_file = st.file_uploader("", type=["xlsx"])
     if up_file and st.button("🚀 Ejecutar Análisis Masivo"):
         try:
@@ -266,7 +264,7 @@ elif selected_nav == "Carga Masiva":
             st.success("✅ Lote procesado con éxito y agregado a los reportes.")
         except: st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
 
-# --- INTELIGENCIA DE MERCADO (CON PAYWALL / CANDADO VIP) ---
+# --- INTELIGENCIA DE MERCADO ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
     
@@ -279,27 +277,24 @@ elif selected_nav == "Inteligencia Mercado":
         img_up = None
         clave_ingresada = ""
         
-        # El candado de seguridad aparece si el usuario selecciona SEO
         if "SEO" in m_switch:
             with st.container(border=True):
-                st.warning("🔒 **Acceso Restringido**\nEsta función procesa imágenes y consume tokens de alto rendimiento.")
+                st.warning("🔒 **Acceso Restringido**\nEsta función consume recursos de alto rendimiento.")
                 clave_ingresada = st.text_input("Ingresa tu Clave Premium:", type="password")
                 img_up = st.file_uploader("📸 Subir Pantallazo (AliExpress)", type=["jpg", "png"])
     
     with col_b:
         with st.container(border=True, height=450):
-            # Aquí es donde el KeyError ocurría si chat_log no existía, pero ya lo solucionamos arriba.
             for m in st.session_state['chat_log']:
                 with st.chat_message(m["role"]): st.markdown(m["content"])
         
         if u_input := st.chat_input("Escribe tu consulta aquí..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
             
-            # Validación de la Clave Premium
             CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
             
             if "SEO" in m_switch and clave_ingresada != CLAVE_VERDADERA:
-                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta. Solicitud cancelada para proteger el saldo de la API."
+                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta."
                 st.session_state['chat_log'].append({"role": "assistant", "content": error_msg})
                 st.rerun()
             else:
@@ -308,7 +303,7 @@ elif selected_nav == "Inteligencia Mercado":
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
                 st.rerun()
 
-# --- REPORTES Y BI (PLOTLY AVANZADO) ---
+# --- REPORTES Y BI ---
 elif selected_nav == "Reportes & BI":
     st.markdown("### 📊 Business Intelligence & Exportación")
     
@@ -330,14 +325,12 @@ elif selected_nav == "Reportes & BI":
         g1, g2 = st.columns(2)
         
         with g1:
-            # Gráfica Financiera
             fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero: Costo vs Ingreso")
             fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
             fig1.update_layout(font_family="Inter", title_font_color="#091E42", legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False), hovermode="x unified", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig1, use_container_width=True)
             
         with g2:
-            # Gráfica de Semáforo
             fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', text_auto='.2f', color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], title="⚖️ Índice de Rentabilidad")
             fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)", annotation_position="top left", annotation_font_color="#2E5BFF")
             fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
@@ -347,7 +340,6 @@ elif selected_nav == "Reportes & BI":
         st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(df_h, use_container_width=True, hide_index=True)
         
-        # Lógica de Exportación a Excel Profesional
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
             df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
@@ -359,7 +351,6 @@ elif selected_nav == "Reportes & BI":
             for col in ws.columns:
                  ws.column_dimensions[col[0].column_letter].width = 20
             
-            # Semáforo de colores en el Excel
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='greaterThan', formula=['1.5'], fill=PatternFill(start_color="C6EFCE", fill_type="solid")))
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='lessThan', formula=['1.2'], fill=PatternFill(start_color="FFC7CE", fill_type="solid")))
             
