@@ -3,14 +3,8 @@ import requests
 import base64
 
 def call_openrouter_ai(prompt, image_input=None, task="legal"):
-    """
-    Motor de Inteligencia Artificial conectado a Gemini 2.5 Flash.
-    Maneja el procesamiento de lenguaje natural y visión multimodal.
-    """
-    try: 
-        key = st.secrets["OPENROUTER_API_KEY"]
-    except: 
-        return "⚠️ Error: Configura tu API Key en los secretos (secrets.toml)."
+    try: key = st.secrets["OPENROUTER_API_KEY"]
+    except: return "⚠️ Error: Configura tu API Key en los secretos (secrets.toml)."
 
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     
@@ -21,7 +15,6 @@ def call_openrouter_ai(prompt, image_input=None, task="legal"):
 
     content = [{"type": "text", "text": f"{sys_msg}\n\nInput: {prompt}"}]
     
-    # Lógica de Visión Multimodal (si el usuario sube una imagen)
     if image_input:
         b64_str = base64.b64encode(image_input.read()).decode('utf-8')
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_str}"}})
