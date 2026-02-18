@@ -204,13 +204,20 @@ elif selected_nav == "Reportes & BI":
             st.plotly_chart(fig2, use_container_width=True)
 
         # ---------------------------------------------------------
-        # MAGIA DE AgGrid PARA LA TABLA
+        # MAGIA DE AgGrid PARA LA TABLA 
         # ---------------------------------------------------------
-        st.markdown("<br>#### 📑 Registro Detallado de Simulaciones", unsafe_allow_html=True)
+
+        st.markdown("<br><h4 style='color: #091E42; font-weight: 600;'>📑 Registro Detallado de Simulaciones</h4>", unsafe_allow_html=True)
         
         gb = GridOptionsBuilder.from_dataframe(df_h)
         gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
         gb.configure_side_bar() 
+        
+        # 2. Formato VIP a las columnas (Moneda y Decimales)
+        gb.configure_column("Costo Unitario (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
+        gb.configure_column("Ingreso ML (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
+        gb.configure_column("Viabilidad (Res)", type=["numericColumn"], valueFormatter="value != undefined ? value.toFixed(2) + 'x' : ''")
+        
         gb.configure_default_column(editable=False, groupable=True)
         gridOptions = gb.build()
         
@@ -219,10 +226,11 @@ elif selected_nav == "Reportes & BI":
             gridOptions=gridOptions,
             enable_enterprise_modules=False,
             allow_unsafe_jscode=True,
-            theme='alpine',
+            theme='alpine', # Tema limpio y moderno
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-            height=400
+            height=300
         )
+        # ---------------------------------------------------------
         # ---------------------------------------------------------
         
         st.markdown("<br>", unsafe_allow_html=True)
