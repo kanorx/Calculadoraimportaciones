@@ -2,16 +2,21 @@ import streamlit as st
 import pandas as pd
 import io
 
+# ==========================================
 # LIBRERÍAS DE UI, TABLAS Y GRÁFICOS AVANZADOS
+# ==========================================
 from streamlit_option_menu import option_menu
 from streamlit_lottie import st_lottie
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
-from streamlit_echarts import st_echarts  # <--- NUEVO MOTOR GRÁFICO
+from streamlit_echarts import st_echarts
+from streamlit_elements import elements, mui  # <--- MAGIA DE MATERIAL UI
 
+# ==========================================
 # MÓDULOS PROPIOS (LA ARQUITECTURA)
+# ==========================================
 from ui.design import inyectar_estilos, load_lottieurl
 from core.financial_api import fetch_trm
 from core.calculations import calc_avion, calc_barco
@@ -181,25 +186,41 @@ elif selected_nav == "Reportes & BI":
         if lottie_logistics: st_lottie(lottie_logistics, height=300, key="empty_state")
     else:
         df_h = pd.DataFrame(st.session_state['historial'])
-        
-        # TARJETAS MÉTRICAS
-        with st.container():
-            col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
-            col_metrics1.metric("Total SKU Analizados", len(df_h))
-            avg_viab = df_h['Viabilidad (Res)'].mean()
-            col_metrics2.metric("Viabilidad Promedio", f"{avg_viab:.2f}x", delta=f"{avg_viab-1.5:.2f}" if avg_viab > 1.5 else f"{avg_viab-1.5:.2f}")
-            col_metrics3.metric("Costo Promedio", f"${df_h['Costo Unitario (Res)'].mean():,.0f}")
+        avg_viab = df_h['Viabilidad (Res)'].mean()
+
+        # ---------------------------------------------------------
+        # TARJETAS DE MÉTRICAS CON MATERIAL UI (STREAMLIT-ELEMENTS)
+        # ---------------------------------------------------------
+        with elements("dashboard_metrics"):
+            with mui.Stack(direction="row", spacing=3, sx={"mb": 4, "mt": 2}):
+                
+                # Tarjeta 1: Total SKU
+                with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
+                    mui.Typography("Total SKU Analizados", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
+                    mui.Typography(f"{len(df_h)}", variant="h3", sx={"color": "#091E42", "fontWeight": 800})
+                
+                # Tarjeta 2: Viabilidad
+                color_viab = "#00E676" if avg_viab >= 1.5 else ("#FFD166" if avg_viab >= 1.2 else "#FF4B4B")
+                with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
+                    mui.Typography("Viabilidad Promedio", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
+                    with mui.Stack(direction="row", alignItems="baseline", spacing=1):
+                        mui.Typography(f"{avg_viab:.2f}x", variant="h3", sx={"color": color_viab, "fontWeight": 800})
+                        mui.Typography("Meta: 1.5x", variant="caption", sx={"color": "#A5ADBA", "fontWeight": 500})
+                        
+                # Tarjeta 3: Costo Promedio
+                with mui.Card(elevation=0, sx={"flex": 1, "p": 3, "borderRadius": 4, "border": "1px solid #E1E5F2", "transition": "0.3s", "&:hover": {"boxShadow": "0 8px 24px rgba(46,91,255,0.1)", "transform": "translateY(-2px)"}}):
+                    mui.Typography("Costo Unitario Promedio", variant="subtitle2", sx={"color": "#6B778C", "fontWeight": 600, "mb": 1})
+                    mui.Typography(f"${df_h['Costo Unitario (Res)'].mean():,.0f}", variant="h3", sx={"color": "#2E5BFF", "fontWeight": 800})
 
         st.markdown("<br>", unsafe_allow_html=True)
-        
+
         # ---------------------------------------------------------
-        # NUEVOS GRÁFICOS CON ECHARTS (NIVEL SAAS)
+        # GRÁFICOS CON ECHARTS
         # ---------------------------------------------------------
         g1, g2 = st.columns(2)
         
         with g1:
             st.markdown("<h5 style='text-align:center; color:#091E42;'>💰 Balance Financiero: Costo vs Ingreso</h5>", unsafe_allow_html=True)
-            # Extraemos datos para ECharts
             productos = df_h['Producto'].tolist()
             costos = df_h['Costo Unitario (Res)'].round(0).tolist()
             ingresos = df_h['Ingreso ML (Res)'].round(0).tolist()
@@ -212,19 +233,8 @@ elif selected_nav == "Reportes & BI":
                 "yAxis": {"type": "value", "splitLine": {"lineStyle": {"type": "dashed", "color": "#E1E5F2"}}},
                 "color": ["#FF4B4B", "#00E676"],
                 "series": [
-                    {
-                        "name": "Costo Unitario",
-                        "type": "bar",
-                        "data": costos,
-                        "itemStyle": {"borderRadius": [6, 6, 0, 0]}, # Bordes redondeados elegantes
-                        "barGap": "15%"
-                    },
-                    {
-                        "name": "Ingreso Neto",
-                        "type": "bar",
-                        "data": ingresos,
-                        "itemStyle": {"borderRadius": [6, 6, 0, 0]}
-                    }
+                    {"name": "Costo Unitario", "type": "bar", "data": costos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}, "barGap": "15%"},
+                    {"name": "Ingreso Neto", "type": "bar", "data": ingresos, "itemStyle": {"borderRadius": [6, 6, 0, 0]}}
                 ]
             }
             st_echarts(options=option_bar, height="350px")
@@ -237,17 +247,11 @@ elif selected_nav == "Reportes & BI":
                     {
                         "name": "Rentabilidad",
                         "type": "gauge",
-                        "min": 0,
-                        "max": 3,
-                        "splitNumber": 3,
+                        "min": 0, "max": 3, "splitNumber": 3,
                         "axisLine": {
                             "lineStyle": {
                                 "width": 18,
-                                "color": [
-                                    [0.4, "#FF4B4B"], # Rojo hasta 1.2x (0.4 de 3)
-                                    [0.5, "#FFD166"], # Amarillo de 1.2x a 1.5x
-                                    [1, "#00E676"]    # Verde de 1.5x en adelante
-                                ]
+                                "color": [[0.4, "#FF4B4B"], [0.5, "#FFD166"], [1, "#00E676"]]
                             }
                         },
                         "pointer": {"itemStyle": {"color": "auto"}},
@@ -262,7 +266,7 @@ elif selected_nav == "Reportes & BI":
             st_echarts(options=option_gauge, height="350px")
 
         # ---------------------------------------------------------
-        # MAGIA DE AgGrid PARA LA TABLA DE DATOS
+        # TABLA DE DATOS CON AgGrid
         # ---------------------------------------------------------
         st.markdown("<br><h4 style='color: #091E42; font-weight: 600;'>📑 Registro Detallado de Simulaciones</h4>", unsafe_allow_html=True)
         
@@ -270,7 +274,6 @@ elif selected_nav == "Reportes & BI":
         gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
         gb.configure_side_bar() 
         
-        # Formato VIP a las columnas
         gb.configure_column("Costo Unitario (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
         gb.configure_column("Ingreso ML (Res)", type=["numericColumn"], valueFormatter="value != undefined ? '$' + value.toLocaleString('es-CO', {maximumFractionDigits: 0}) : ''")
         gb.configure_column("Viabilidad (Res)", type=["numericColumn"], valueFormatter="value != undefined ? value.toFixed(2) + 'x' : ''")
@@ -290,7 +293,9 @@ elif selected_nav == "Reportes & BI":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # ---------------------------------------------------------
         # EXPORTACIÓN EXCEL
+        # ---------------------------------------------------------
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as wr:
             df_h.to_excel(wr, index=False, sheet_name='Reporte Gerencial')
