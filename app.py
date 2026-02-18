@@ -80,16 +80,23 @@ st.markdown("""
 # ==========================================
 # 2. ESTADO Y TRM
 # ==========================================
-if 'historial' not in st.session_state: st.session_state['historial'] = []
-if 'chat_log' not in st.session_state: 
-    st.session_state['chat_log'] = [{"role": "assistant", "content": "Sistema en línea. Soy tu copiloto de importaciones."}]
-
 @st.cache_data(ttl=3600)
 def fetch_trm():
     try:
         url = "https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC"
-        return float(requests.get(url, timeout=5).json()[0]['valor'])
-    except: return 4000.0
+        # TRUCO: Nos "disfrazamos" de navegador Chrome para que el gobierno no nos bloquee
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        # Aumentamos el tiempo de espera a 10 segundos por si la página está lenta
+        respuesta = requests.get(url, headers=headers, timeout=10)
+        
+        if respuesta.status_code == 200:
+            return float(respuesta.json()[0]['valor'])
+        else:
+            return 4000.0
+    except Exception as e: 
+        return 4000.0
 
 TRM_ACTUAL = fetch_trm()
 
