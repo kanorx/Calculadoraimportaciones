@@ -10,9 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import CellIsRule
 
-# ==========================================
-# IMPORTACIONES DE TUS MÓDULOS (LA MAGIA DE LA ARQUITECTURA)
-# ==========================================
+# MÓDULOS PROPIOS
 from ui.design import inyectar_estilos, load_lottieurl
 from core.financial_api import fetch_trm
 from core.calculations import calc_avion, calc_barco
@@ -22,21 +20,18 @@ from engine.engine_ias import call_openrouter_ai
 # 1. CONFIGURACIÓN INICIAL
 # ==========================================
 st.set_page_config(page_title="ImportPro Suite", layout="wide", page_icon="🌐")
-
-# Inyectamos el CSS desde tu archivo ui/design.py
 inyectar_estilos()
 
 # ==========================================
-# 2. MEMORIA DE ESTADO
+# 2. MEMORIA DE ESTADO (Solución KeyError)
 # ==========================================
 if 'historial' not in st.session_state: 
     st.session_state['historial'] = []
-    
 if 'chat_log' not in st.session_state: 
     st.session_state['chat_log'] = [{"role": "assistant", "content": "Sistema en línea. Soy tu copiloto de importaciones."}]
 
 # ==========================================
-# 3. DATOS EXTERNOS (TRM Y ANIMACIONES)
+# 3. DATOS EXTERNOS
 # ==========================================
 TRM_ACTUAL = fetch_trm()
 lottie_logistics = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_s2l79gze.json")
@@ -72,7 +67,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 # 5. PESTAÑAS DEL DASHBOARD
 # ==========================================
 
-# --- AÉREO ---
 if selected_nav == "Aéreo":
     st.markdown("### ✈️ Importación Courier / Aéreo")
     with st.container(border=True):
@@ -91,7 +85,6 @@ if selected_nav == "Aéreo":
             c_ml = st.number_input("Comisión ML %", value=0.24, min_value=0.0)
 
         if st.button("Calcular Rentabilidad Aérea 🚀"):
-            # Usamos la función importada de core/calculations.py
             res = calc_avion(p_u, TRM_ACTUAL, q, f_u, ar, iv, adm, p_v, c_ml)
             st.markdown("---")
             r1, r2, r3, r4 = st.columns(4)
@@ -101,7 +94,6 @@ if selected_nav == "Aéreo":
             r4.metric("Ratio Viabilidad", f"{res['viabilidad']:.2f}x")
             st.session_state['historial'].append({"Producto": n_p, "Método": "Avión", "Costo Unitario (Res)": res['unitario'], "Ingreso ML (Res)": res['ingreso_neto'], "Viabilidad (Res)": res['viabilidad']})
 
-# --- MARÍTIMO ---
 elif selected_nav == "Marítimo":
     st.markdown("### 🚢 Importación LCL Consolidado")
     with st.container(border=True):
@@ -121,7 +113,6 @@ elif selected_nav == "Marítimo":
             p_v = st.number_input("P. Venta ML (COP)", value=650000.0, min_value=0.0)
 
         if st.button("Calcular Rentabilidad Marítima 🌊"):
-            # Usamos la función importada de core/calculations.py
             res = calc_barco(p_u, TRM_ACTUAL, q, env, 0.03, alt, anc, lar, caj, cbm_v, 200000.0, p_v, 0.24)
             st.markdown("---")
             st.info(f"📦 Volumen Total: `{res['volumen']:.4f} m³` | Costo CBM: `${res['costo_cbm']:,.0f} COP`")
@@ -132,10 +123,9 @@ elif selected_nav == "Marítimo":
             r4.metric("Ratio Viabilidad", f"{res['viabilidad']:.2f}x")
             st.session_state['historial'].append({"Producto": n_p, "Método": "Barco", "Costo Unitario (Res)": res['unitario'], "Ingreso ML (Res)": res['ingreso_neto'], "Viabilidad (Res)": res['viabilidad']})
 
-# --- CARGA MASIVA ---
 elif selected_nav == "Carga Masiva":
     st.markdown("### 📁 Carga Masiva (Excel)")
-    st.info("Sube tu plantilla estandarizada para procesar lotes enteros simultáneamente.")
+    st.info("Sube tu plantilla estandarizada para procesar lotes enteros.")
     up_file = st.file_uploader("", type=["xlsx"])
     if up_file and st.button("🚀 Ejecutar Análisis Masivo"):
         try:
@@ -145,22 +135,18 @@ elif selected_nav == "Carga Masiva":
             st.success("✅ Lote procesado con éxito y agregado a los reportes.")
         except: st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
 
-# --- INTELIGENCIA DE MERCADO ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
-    
     col_a, col_b = st.columns([1, 2])
-    
     with col_a:
         m_switch = st.radio("Herramienta activa:", ["🧑‍⚖️ Aranceles y Aduanas (Gratis)", "🚀 Optimización SEO (Premium)"])
         st.markdown("<br>", unsafe_allow_html=True)
-        
         img_up = None
         clave_ingresada = ""
         
         if "SEO" in m_switch:
             with st.container(border=True):
-                st.warning("🔒 **Acceso Restringido**\nEsta función consume recursos de alto rendimiento.")
+                st.warning("🔒 **Acceso Restringido**\nConsume recursos de alto rendimiento.")
                 clave_ingresada = st.text_input("Ingresa tu Clave Premium:", type="password")
                 img_up = st.file_uploader("📸 Subir Pantallazo (AliExpress)", type=["jpg", "png"])
     
@@ -171,30 +157,24 @@ elif selected_nav == "Inteligencia Mercado":
         
         if u_input := st.chat_input("Escribe tu consulta aquí..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
-            
             CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
             
             if "SEO" in m_switch and clave_ingresada != CLAVE_VERDADERA:
-                error_msg = "⛔ **Acceso Denegado:** Clave Premium incorrecta."
-                st.session_state['chat_log'].append({"role": "assistant", "content": error_msg})
+                st.session_state['chat_log'].append({"role": "assistant", "content": "⛔ **Acceso Denegado:** Clave Premium incorrecta."})
                 st.rerun()
             else:
-                with st.spinner("IA Procesando datos de alto rendimiento..."):
-                    # Usamos la función importada de engine/engine_ias.py
+                with st.spinner("IA Procesando datos..."):
                     resp = call_openrouter_ai(u_input, image_input=img_up, task="legal" if "Aduanas" in m_switch else "marketing")
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
                 st.rerun()
 
-# --- REPORTES Y BI ---
 elif selected_nav == "Reportes & BI":
     st.markdown("### 📊 Business Intelligence & Exportación")
-    
     if not st.session_state['historial']:
-        st.info("ℹ️ Realiza al menos una simulación para activar el dashboard de análisis.")
+        st.info("ℹ️ Realiza al menos una simulación para activar el dashboard.")
         if lottie_logistics: st_lottie(lottie_logistics, height=300, key="empty_state")
     else:
         df_h = pd.DataFrame(st.session_state['historial'])
-        
         with st.container():
             col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
             col_metrics1.metric("Total SKU Analizados", len(df_h))
@@ -203,18 +183,16 @@ elif selected_nav == "Reportes & BI":
             col_metrics3.metric("Costo Promedio", f"${df_h['Costo Unitario (Res)'].mean():,.0f}")
 
         st.markdown("<br>", unsafe_allow_html=True)
-
         g1, g2 = st.columns(2)
-        
         with g1:
-            fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero: Costo vs Ingreso")
+            fig1 = px.bar(df_h, x='Producto', y=['Costo Unitario (Res)', 'Ingreso ML (Res)'], barmode='group', text_auto='.2s', color_discrete_sequence=['#FF4B4B', '#00E676'], title="💰 Balance Financiero")
             fig1.update_traces(textposition='outside', textfont_size=12, marker_line_width=0, opacity=0.9)
             fig1.update_layout(font_family="Inter", title_font_color="#091E42", legend_title_text="", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Valor (COP)", zeroline=False), hovermode="x unified", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig1, use_container_width=True)
             
         with g2:
             fig2 = px.bar(df_h, x='Producto', y='Viabilidad (Res)', color='Viabilidad (Res)', text_auto='.2f', color_continuous_scale=['#FF4B4B', '#FFD166', '#00E676'], title="⚖️ Índice de Rentabilidad")
-            fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)", annotation_position="top left", annotation_font_color="#2E5BFF")
+            fig2.add_hline(y=1.5, line_dash="dash", line_color="#2E5BFF", annotation_text="Meta Ideal (1.5x)")
             fig2.update_traces(textposition='outside', textfont_size=13, marker_line_width=0)
             fig2.update_layout(font_family="Inter", title_font_color="#091E42", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', xaxis=dict(showgrid=False, title=""), yaxis=dict(showgrid=True, gridcolor='#E1E5F2', title="Ratio (x)", zeroline=False), coloraxis_showscale=False, hovermode="x", margin=dict(t=60, b=20, l=20, r=20))
             st.plotly_chart(fig2, use_container_width=True)
@@ -232,7 +210,6 @@ elif selected_nav == "Reportes & BI":
                 cell.alignment = Alignment(horizontal='center')
             for col in ws.columns:
                  ws.column_dimensions[col[0].column_letter].width = 20
-            
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='greaterThan', formula=['1.5'], fill=PatternFill(start_color="C6EFCE", fill_type="solid")))
             ws.conditional_formatting.add(f"E2:E{len(df_h)+1}", CellIsRule(operator='lessThan', formula=['1.2'], fill=PatternFill(start_color="FFC7CE", fill_type="solid")))
             
