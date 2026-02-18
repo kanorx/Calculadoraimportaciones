@@ -145,7 +145,8 @@ def calc_barco(p_u, q, env, tc, alt, anc, lar, caj, cbm_v, fn, p_v, c_ml):
 col_hero1, col_hero2 = st.columns([3, 1])
 with col_hero1:
     st.title("🌐 ImportPro Suite")
-    st.markdown(f"**Indicador TRM Hoy:** `<span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span>` | **IA:** `Online`", unsafe_allow_html=True)
+    # AQUÍ ESTÁ EL CAMBIO: Quitamos los backticks (`) para que el HTML funcione
+    st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** 🟢 Online (Gemini Flash)", unsafe_allow_html=True)
 with col_hero2:
     if lottie_logistics: st_lottie(lottie_logistics, height=120, key="hero")
 
