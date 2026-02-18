@@ -145,7 +145,8 @@ def calc_barco(p_u, q, env, tc, alt, anc, lar, caj, cbm_v, fn, p_v, c_ml):
 col_hero1, col_hero2 = st.columns([3, 1])
 with col_hero1:
     st.title("🌐 ImportPro Suite")
-    st.markdown(f"**Indicador TRM Hoy:** `<span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span>` | **IA:** `Online`", unsafe_allow_html=True)
+    # CORRECCIÓN AQUÍ: Quitamos las comillas invertidas que rompían el HTML
+    st.markdown(f"**Indicador TRM Hoy:** <span style='background:#E1E5F2; color:#2E5BFF; padding:4px 10px; border-radius:6px; font-weight:bold;'>${TRM_ACTUAL:,.2f} COP</span> | **IA:** `Online`", unsafe_allow_html=True)
 with col_hero2:
     if lottie_logistics: st_lottie(lottie_logistics, height=120, key="hero")
 
@@ -249,7 +250,6 @@ elif selected_nav == "Inteligencia Mercado":
         m_switch = st.radio("Herramienta activa:", ["🧑‍⚖️ Aranceles y Aduanas (Gratis)", "🚀 Optimización SEO (Premium)"])
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Lógica de seguridad: Solo mostramos la subida de imagen y la clave si elige SEO
         img_up = None
         clave_ingresada = ""
         
@@ -267,8 +267,6 @@ elif selected_nav == "Inteligencia Mercado":
         if u_input := st.chat_input("Escribe tu consulta aquí..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
             
-            # --- VALIDACIÓN DEL CANDADO ---
-            # Busca la clave en tus secretos. Si no existe, usa "12345" por defecto.
             CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
             
             if "SEO" in m_switch and clave_ingresada != CLAVE_VERDADERA:
@@ -276,7 +274,6 @@ elif selected_nav == "Inteligencia Mercado":
                 st.session_state['chat_log'].append({"role": "assistant", "content": error_msg})
                 st.rerun()
             else:
-                # Si es aduanas (gratis) o si es SEO y la clave es correcta, ejecutamos la IA
                 with st.spinner("IA Procesando datos de alto rendimiento..."):
                     resp = call_openrouter_ai(u_input, image_input=img_up, task="legal" if "Aduanas" in m_switch else "marketing")
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
