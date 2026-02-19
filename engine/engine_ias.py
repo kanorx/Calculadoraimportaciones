@@ -145,7 +145,7 @@ def generar_audio_openrouter(texto, voz="nova"):
             {
                 "role": "user", 
                 "content": f"""
-                ERES UN LOCUTOR DE TIKTOKER COMERCIAL Y VENDEDOR ESTRELLA. 
+                ERES UN LOCUTOR DE TIKTOKER COMERCIAL Y ESTRELLA. 
                 Tu objetivo es que el cliente SIENTA que necesita este producto YA.
                 
                 REGLAS DE ACTUACIÓN:
