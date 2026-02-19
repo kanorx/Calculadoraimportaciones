@@ -12,8 +12,8 @@ from ui.design import inyectar_estilos, load_lottieurl
 from ui.reports import render_dashboard_bi  # <--- NUESTRO NUEVO MÓDULO ESTRELLA
 from core.financial_api import fetch_trm
 from core.calculations import calc_avion, calc_barco
-from engine.engine_ias import call_openrouter_ai
 from engine.engine_ias import call_openrouter_ai, generar_audio_openrouter
+from engine.scraper import scrape_aliexpress_meta
 
 # ==========================================
 # 1. CONFIGURACIÓN INICIAL
@@ -135,30 +135,82 @@ elif selected_nav == "Carga Masiva":
             for _, row in df_up.iterrows():
                 st.session_state['historial'].append({"Producto": row.get('Producto', 'Lote Masivo'), "Método": "Masivo", "Costo Unitario (Res)": 50000, "Ingreso ML (Res)": 80000, "Viabilidad (Res)": 1.6})
             st.success("✅ Lote procesado con éxito y agregado a los reportes.")
-        except: st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
+        except: 
+            st.error("Error leyendo el archivo. Asegúrate de que sea .xlsx válido.")
 
 # --- INTELIGENCIA DE MERCADO ---
 elif selected_nav == "Inteligencia Mercado":
     st.markdown("### 🧠 Centro de Inteligencia IA")
     col_a, col_b = st.columns([1, 2])
+    
+    # ---------------------------------------------
+    # COLUMNA A: HERRAMIENTAS Y CONTROLES (IZQUIERDA)
+    # ---------------------------------------------
     with col_a:
-        m_switch = st.radio("Herramienta activa:", ["🧑‍⚖️ Aranceles y Aduanas (Gratis)", "🚀 Optimización SEO (Premium)"])
+        m_switch = st.radio(
+            "Herramienta activa:", 
+            ["🧑‍⚖️ Aranceles y Aduanas (Gratis)", "🚀 Optimización SEO (Premium)", "🕷️ Auto-Scraping ML (Link)"]
+        )
         st.markdown("<br>", unsafe_allow_html=True)
         img_up = None
         clave_ingresada = ""
+        link_ali = ""
         
         if "SEO" in m_switch:
             with st.container(border=True):
                 st.warning("🔒 **Acceso Restringido**\nConsume recursos de alto rendimiento.")
                 clave_ingresada = st.text_input("Ingresa tu Clave Premium:", type="password")
                 img_up = st.file_uploader("📸 Subir Pantallazo (AliExpress)", type=["jpg", "png"])
-    
+                
+        elif "Scraping" in m_switch:
+            with st.container(border=True):
+                st.info("Pega el link del producto y extraeremos los datos web.")
+                link_ali = st.text_input("🔗 Link de AliExpress o Amazon:")
+                if st.button("Extraer y Optimizar 🪄") and link_ali:
+                    with st.spinner("Infiltrándose en la web..."):
+                        datos_web = scrape_aliexpress_meta(link_ali)
+                        if datos_web:
+                            prompt_scraping = f"Tengo esta información extraída:\nTítulo: {datos_web['titulo_original']}\nDescripción: {datos_web['descripcion_raw']}"
+                            st.session_state['chat_log'].append({"role": "user", "content": f"Optimizar link: {link_ali}"})
+                            resp = call_openrouter_ai(prompt_scraping, task="marketing")
+                            st.session_state['chat_log'].append({"role": "assistant", "content": resp})
+                            st.rerun()
+                        else:
+                            st.error("Firewall bloqueó la extracción. Usa la opción SEO (pantallazo).")
+
+        # MÓDULO DE AUDIO: Ahora vive en la columna izquierda, mucho más elegante.
+        if ("SEO" in m_switch or "Scraping" in m_switch):
+            if len(st.session_state['chat_log']) > 1 and st.session_state['chat_log'][-1]['role'] == 'assistant':
+                st.markdown("---")
+                st.markdown("#### 🎙️ Generador de Locución (Reels/TikTok)")
+                
+                voz_elegida = st.selectbox(
+                    "Elige la voz del locutor:",
+                    ["nova", "shimmer", "alloy", "echo", "onyx", "fable"],
+                    format_func=lambda x: f"🗣️ {x.capitalize()} " + ("(Femenina)" if x in ["nova", "shimmer"] else "(Masculina/Neutra)")
+                )
+                
+                if st.button("🎬 Generar Audio", type="primary", use_container_width=True):
+                    ultimo_texto = st.session_state['chat_log'][-1]['content']
+                    
+                    with st.spinner(f"🎤 Grabando audio con {voz_elegida.capitalize()}..."):
+                        audio_bytes, error = generar_audio_openrouter(ultimo_texto, voz=voz_elegida)
+                        if audio_bytes:
+                            st.success("¡Audio listo! 🎧")
+                            st.audio(audio_bytes, format="audio/wav")
+                        else:
+                            st.error(error)
+
+    # ---------------------------------------------
+    # COLUMNA B: CHAT E IA TEXTUAL (DERECHA)
+    # ---------------------------------------------
     with col_b:
         with st.container(border=True, height=450):
             for m in st.session_state['chat_log']:
-                with st.chat_message(m["role"]): st.markdown(m["content"])
+                with st.chat_message(m["role"]): 
+                    st.markdown(m["content"])
         
-        if u_input := st.chat_input("Escribe tu consulta aquí..."):
+        if u_input := st.chat_input("Escribe tu consulta o sube foto y pide optimizar..."):
             st.session_state['chat_log'].append({"role": "user", "content": u_input})
             CLAVE_VERDADERA = st.secrets.get("CLAVE_PREMIUM", "12345")
             
@@ -166,44 +218,12 @@ elif selected_nav == "Inteligencia Mercado":
                 st.session_state['chat_log'].append({"role": "assistant", "content": "⛔ **Acceso Denegado:** Clave Premium incorrecta."})
                 st.rerun()
             else:
-                with st.spinner("IA Procesando datos..."):
-                    resp = call_openrouter_ai(u_input, image_input=img_up, task="legal" if "Aduanas" in m_switch else "marketing")
+                with st.spinner("🧠 IA Procesando datos..."):
+                    task_type = "legal" if "Aduanas" in m_switch else "marketing"
+                    resp = call_openrouter_ai(u_input, image_input=img_up, task=task_type)
                     st.session_state['chat_log'].append({"role": "assistant", "content": resp})
                 st.rerun()
 
-        # ==========================================
-        # 🎙️ MÓDULO DE LOCUCIÓN (NUEVO)
-        # ==========================================
-        if "SEO" in m_switch or "Scraping" in m_switch:
-            # Solo mostramos el módulo si ya hay texto generado en el chat
-            if len(st.session_state['chat_log']) > 1:
-                st.markdown("---")
-                st.markdown("### 🎙️ Generador de Locución (Reels/TikTok)")
-                
-                col_voz, col_btn = st.columns([2, 1])
-                with col_voz:
-                    voz_elegida = st.selectbox(
-                        "Elige la voz del locutor:",
-                        ["nova", "shimmer", "alloy", "echo", "onyx", "fable"],
-                        format_func=lambda x: f"🗣️ {x.capitalize()} " + ("(Femenina)" if x in ["nova", "shimmer"] else "(Masculina/Neutra)")
-                    )
-                
-                with col_btn:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🎬 Generar Audio", type="primary", use_container_width=True):
-                        # Tomamos la última respuesta de la IA (el texto de MercadoLibre)
-                        ultimo_texto = st.session_state['chat_log'][-1]['content']
-                        
-                        with st.spinner(f"🎤 Grabando audio con la voz de {voz_elegida.capitalize()}..."):
-                            audio_bytes, error = generar_audio_openrouter(ultimo_texto, voz=voz_elegida)
-                            
-                            if audio_bytes:
-                                st.success("¡Audio generado con éxito! 🎧")
-                                st.audio(audio_bytes, format="audio/wav")
-                                # El propio reproductor st.audio ya incluye un botón de descarga nativo de Streamlit
-                            else:
-                                st.error(error)
 # --- REPORTES Y BI ---
 elif selected_nav == "Reportes & BI":
-    # MIRA ESTA BELLEZA: ¡Una sola línea de código maneja toda la lógica visual!
     render_dashboard_bi(st.session_state['historial'])
