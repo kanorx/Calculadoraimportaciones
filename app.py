@@ -165,7 +165,7 @@ elif selected_nav == "Inteligencia Mercado":
         elif "Scraping" in m_switch:
             with st.container(border=True):
                 st.info("Pega el link del producto y extraeremos los datos web.")
-                link_ali = st.text_input("🔗 Link de AliExpress o Amazon:")
+                link_ali = st.text_input("🔗 Link de MercadoLibre:")
                 if st.button("Extraer y Optimizar 🪄") and link_ali:
                     with st.spinner("Infiltrándose en la web..."):
                         datos_web = scrape_aliexpress_meta(link_ali)
