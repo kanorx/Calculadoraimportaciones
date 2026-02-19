@@ -145,7 +145,7 @@ def generar_audio_openrouter(texto, voz="nova"):
             {
                 "role": "user", 
                 "content": f"""
-                ERES UN LOCUTOR DE RADIO COMERCIAL Y VENDEDOR ESTRELLA. 
+                ERES UN LOCUTOR DE TIKTOKER COMERCIAL Y VENDEDOR ESTRELLA. 
                 Tu objetivo es que el cliente SIENTA que necesita este producto YA.
                 
                 REGLAS DE ACTUACIÓN:
@@ -158,7 +158,7 @@ def generar_audio_openrouter(texto, voz="nova"):
                 
                 TEXTO: {texto}
                 
-                IMPORTANTE: Devuelve SOLO el audio con el guion convertido a un tono de oferta relámpago, usando palabras como '¡Increíble!', '¡Atención!', '¡Solo por hoy!'.
+                IMPORTANTE: Devuelve SOLO el audio con el guion convertido a un tono de oferta relámpago, usando palabras como ¡Solo por hoy!'.
                 """
             }
         ],
