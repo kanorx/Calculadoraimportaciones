@@ -141,11 +141,25 @@ def generar_audio_openrouter(texto, voz="nova"):
             "voice": voz,
             "format": "pcm16"
         },
-        "messages": [
+            "messages": [
             {
                 "role": "user", 
-                # AQUÍ ESTÁ LA MAGIA DEL LÍMITE DE TIEMPO Y FORMATO VIRAL:
-                "content": f"Actúa como un creador de contenido viral. Toma la siguiente descripción de producto y transfórmala en un guion persuasivo, dinámico y corto de MÁXIMO 75 palabras (para que el audio dure exactamente 30 a 35 segundos). Léelo con mucha energía comercial y fluidez, sin mencionar viñetas ni símbolos:\n\n{texto}"
+                "content": f"""
+                ERES UN LOCUTOR DE RADIO COMERCIAL Y VENDEDOR ESTRELLA. 
+                Tu objetivo es que el cliente SIENTA que necesita este producto YA.
+                
+                REGLAS DE ACTUACIÓN:
+                1. ¡TU VOZ DEBE SER ENÉRGICA, DINÁMICA Y MUY EMOCIONANTE! 
+                2. Usa entonaciones variadas, nada de hablar plano.
+                3. Haz pausas dramáticas donde veas puntos.
+                4. ¡S suena a exclamación, grítalo con alegría!
+                
+                TRANSFORMA ESTE TEXTO en un guion de máximo 75 palabras (30-35 segundos):
+                
+                TEXTO: {texto}
+                
+                IMPORTANTE: Devuelve SOLO el audio con el guion convertido a un tono de oferta relámpago, usando palabras como '¡Increíble!', '¡Atención!', '¡Solo por hoy!'.
+                """
             }
         ],
         "stream": True
