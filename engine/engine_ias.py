@@ -19,8 +19,9 @@ def call_openrouter_ai(prompt, image_input=None, task="marketing"):
         reglas_estrictas = """Eres un Agente de Aduanas y experto en Aranceles de Colombia (DIAN).
 Responde de forma clara, profesional y en viñetas:
 1. Subpartida arancelaria aproximada.
-2. Si requiere vistos buenos (INVIMA, SIC, etc.).
-3. Consejos para evitar retenciones."""
+2. IVA Y ARANCEL EN COLOMBIA (REALES O ESTIMADOS)
+3. Si requiere vistos buenos (INVIMA, SIC, etc.).
+4. Consejos para evitar retenciones."""
 
     elif task == "marketing":
         reglas_estrictas = """INSTRUCCIÓN SUPREMA: Eres un Copywriter SEO Senior para MercadoLibre.
