@@ -83,7 +83,7 @@ TÍTULO OPTIMIZADO:
             # Eliminamos el rol 'system' y mandamos todo como 'user' para obligarlo a obedecer
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.2, # Bajamos la creatividad casi a cero para que no invente formatos
+        "temperature": 0.5, # Bajamos la creatividad casi a cero para que no invente formatos
         "max_tokens": 800
     }
     
