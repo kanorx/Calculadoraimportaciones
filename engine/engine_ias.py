@@ -1,5 +1,6 @@
 import requests
 import base64
+import json
 import streamlit as st
 
 def call_openrouter_ai(prompt, image_input=None, task="marketing"):
@@ -21,9 +22,7 @@ Responde de forma clara, profesional y en viñetas:
 1. Subpartida arancelaria aproximada.
 2. IVA Y ARANCEL EN COLOMBIA (REALES O ESTIMADOS) https://muisca.dian.gov.co/WebArancel/DefConsultaNomenclaturaPorCodigo.faces 
 (Hacer que confirmen aqui con la subpartida que les diste. El IVA y Arancel que les diste) (IMPORTANTE Prioriza los datos reales frente al Arancel si es posible consulta si hay proteccion a la industria un ejemplo es que hay un arancel alto 35%-40% para la ropa)
-3. Si requiere vistos buenos (INVIMA, etc.).
-4. Recuerda siempre ajustar tu respuesta a Maximo 600 tokens de salida."""
-        # Ahorro de saldo y respuesta exacta
+3. Si requiere vistos buenos (INVIMA, SIC, etc.)."""
         max_tokens_dinamico = 600
         temperatura_dinamica = 0.1 
 
@@ -55,7 +54,6 @@ TÍTULO OPTIMIZADO:
 [Párrafo 2 - La Experiencia: Escribe un párrafo de al menos 4 líneas profundizando en la calidad, los materiales, la experiencia de uso y por qué es superior a la competencia].
 
 [Párrafo 3 - El Cierre: Genera confianza hablando de durabilidad o practicidad, e incluye un llamado a la acción persuasivo invitando a la compra inmediata]."""
-        # Presupuesto amplio para textos largos y persuasivos
         max_tokens_dinamico = 1000
         temperatura_dinamica = 0.6 
 
@@ -100,7 +98,6 @@ TÍTULO OPTIMIZADO:
         "messages": [
             {"role": "user", "content": user_content}
         ],
-        # INYECTAMOS LAS VARIABLES DINÁMICAS AQUÍ
         "temperature": temperatura_dinamica, 
         "max_tokens": max_tokens_dinamico  
     }
@@ -115,10 +112,11 @@ TÍTULO OPTIMIZADO:
     except requests.exceptions.RequestException as e:
         return f"🔌 Error de conexión con la IA: {str(e)}"
 
+
 def generar_audio_openrouter(texto, voz="nova"):
     """
     Se conecta a OpenAI: GPT Audio Mini mediante OpenRouter 
-    para generar una locución Text-to-Speech (TTS) súper económica.
+    utilizando STREAMING forzado, ensamblando el audio en tiempo real.
     """
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"]
@@ -133,36 +131,53 @@ def generar_audio_openrouter(texto, voz="nova"):
         "Content-Type": "application/json"
     }
     
-    # Payload configurado para la modalidad de AUDIO
     payload = {
         "model": "openai/gpt-audio-mini",
-        "modalities": ["text", "audio"], # Le exigimos que devuelva audio
+        "modalities": ["text", "audio"],
         "audio": {
             "voice": voz,
-            "format": "wav" # Formato de alta calidad compatible con reproductores web
+            "format": "wav"
         },
         "messages": [
             {
                 "role": "user", 
                 "content": f"Lee este texto con tono persuasivo y comercial, sin leer los guiones o viñetas literalmente:\n\n{texto}"
             }
-        ]
+        ],
+        "stream": True  # <--- EL FIX MÁGICO QUE EXIGE OPENAI
     }
     
     try:
-        # Le damos un timeout más largo porque generar audio toma unos segundos extra
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        # Activamos stream=True en la petición HTTP
+        response = requests.post(url, headers=headers, json=payload, stream=True, timeout=60)
+        
         if response.status_code == 200:
-            data = response.json()
-            message = data['choices'][0]['message']
+            audio_b64_chunks = []
             
-            # Extraemos la data codificada en base64 y la convertimos en bytes
-            if 'audio' in message and 'data' in message['audio']:
-                audio_b64 = message['audio']['data']
-                audio_bytes = base64.b64decode(audio_b64)
+            # Recibimos el audio en pedacitos (chunks) en tiempo real
+            for line in response.iter_lines():
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    # Buscamos las líneas de datos válidas
+                    if decoded_line.startswith("data: ") and decoded_line != "data: [DONE]":
+                        try:
+                            # Leemos el pedacito de JSON
+                            json_data = json.loads(decoded_line[6:])
+                            delta = json_data['choices'][0].get('delta', {})
+                            
+                            # Si trae un pedacito de audio, lo guardamos en la lista
+                            if 'audio' in delta and 'data' in delta['audio']:
+                                audio_b64_chunks.append(delta['audio']['data'])
+                        except json.JSONDecodeError:
+                            continue
+            
+            # Si logramos recolectar pedazos de audio, los fusionamos
+            if audio_b64_chunks:
+                full_b64 = "".join(audio_b64_chunks)
+                audio_bytes = base64.b64decode(full_b64)
                 return audio_bytes, None
             else:
-                return None, "❌ Error: La IA no devolvió el archivo de audio."
+                return None, "❌ Error: La IA respondió, pero no envió fragmentos de audio."
         else:
             return None, f"❌ Error de API ({response.status_code}): {response.text}"
             
