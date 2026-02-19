@@ -1,6 +1,8 @@
 import requests
 import base64
 import json
+import wave
+import io
 import streamlit as st
 
 def call_openrouter_ai(prompt, image_input=None, task="marketing"):
@@ -116,7 +118,8 @@ TÍTULO OPTIMIZADO:
 def generar_audio_openrouter(texto, voz="nova"):
     """
     Se conecta a OpenAI: GPT Audio Mini mediante OpenRouter 
-    utilizando STREAMING forzado, ensamblando el audio en tiempo real.
+    utilizando STREAMING forzado, y convierte los datos crudos (PCM16) 
+    a un archivo WAV reproducible.
     """
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"]
@@ -136,7 +139,7 @@ def generar_audio_openrouter(texto, voz="nova"):
         "modalities": ["text", "audio"],
         "audio": {
             "voice": voz,
-            "format": "wav"
+            "format": "pcm16"  # Exigen datos crudos en streaming
         },
         "messages": [
             {
@@ -144,38 +147,44 @@ def generar_audio_openrouter(texto, voz="nova"):
                 "content": f"Lee este texto con tono persuasivo y comercial, sin leer los guiones o viñetas literalmente:\n\n{texto}"
             }
         ],
-        "stream": True  # <--- EL FIX MÁGICO QUE EXIGE OPENAI
+        "stream": True
     }
     
     try:
-        # Activamos stream=True en la petición HTTP
         response = requests.post(url, headers=headers, json=payload, stream=True, timeout=60)
         
         if response.status_code == 200:
             audio_b64_chunks = []
             
-            # Recibimos el audio en pedacitos (chunks) en tiempo real
             for line in response.iter_lines():
                 if line:
                     decoded_line = line.decode('utf-8')
-                    # Buscamos las líneas de datos válidas
                     if decoded_line.startswith("data: ") and decoded_line != "data: [DONE]":
                         try:
-                            # Leemos el pedacito de JSON
                             json_data = json.loads(decoded_line[6:])
                             delta = json_data['choices'][0].get('delta', {})
                             
-                            # Si trae un pedacito de audio, lo guardamos en la lista
                             if 'audio' in delta and 'data' in delta['audio']:
                                 audio_b64_chunks.append(delta['audio']['data'])
                         except json.JSONDecodeError:
                             continue
             
-            # Si logramos recolectar pedazos de audio, los fusionamos
             if audio_b64_chunks:
+                # 1. Unimos todos los pedazos de base64
                 full_b64 = "".join(audio_b64_chunks)
-                audio_bytes = base64.b64decode(full_b64)
-                return audio_bytes, None
+                # 2. Decodificamos a bytes crudos (PCM16)
+                raw_pcm_bytes = base64.b64decode(full_b64)
+                
+                # 3. FABRICAMOS EL ARCHIVO WAV EN MEMORIA
+                wav_io = io.BytesIO()
+                with wave.open(wav_io, 'wb') as wav_file:
+                    wav_file.setnchannels(1)       # Mono (1 canal)
+                    wav_file.setsampwidth(2)       # 16-bit (2 bytes por muestra)
+                    wav_file.setframerate(24000)   # 24kHz (Frecuencia estándar de OpenAI)
+                    wav_file.writeframes(raw_pcm_bytes)
+                
+                # Devolvemos el WAV perfecto y listo para Streamlit
+                return wav_io.getvalue(), None
             else:
                 return None, "❌ Error: La IA respondió, pero no envió fragmentos de audio."
         else:
