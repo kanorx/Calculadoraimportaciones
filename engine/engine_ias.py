@@ -25,4 +25,4 @@ def call_openrouter_ai(prompt, image_input=None, task="legal"):
         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=25)
         return res.json()['choices'][0]['message']['content'] if res.status_code == 200 else f"Error API: {res.status_code}"
     except: 
-        return "❌ Sin conexión a la IA. Avisa en el grupo.
+        return "❌ Sin conexión a la IA. Avisa en el grupo."
