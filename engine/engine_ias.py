@@ -23,7 +23,7 @@ Responde de forma clara, profesional y en viñetas:
 (Hacer que confirmen aqui con la subpartida que les diste. El IVA y Arancel que les diste) (IMPORTANTE Prioriza los datos reales frente al Arancel si es posible consulta si hay proteccion a la industria un ejemplo es que hay un arancel alto 35%-40% para la ropa)
 3. Si requiere vistos buenos (INVIMA, SIC, etc.)."""
         # Ahorro de saldo y respuesta exacta
-        max_tokens_dinamico = 350
+        max_tokens_dinamico = 600
         temperatura_dinamica = 0.1 
 
     elif task == "marketing":
