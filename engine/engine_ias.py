@@ -114,3 +114,57 @@ TÍTULO OPTIMIZADO:
             
     except requests.exceptions.RequestException as e:
         return f"🔌 Error de conexión con la IA: {str(e)}"
+
+def generar_audio_openrouter(texto, voz="nova"):
+    """
+    Se conecta a OpenAI: GPT Audio Mini mediante OpenRouter 
+    para generar una locución Text-to-Speech (TTS) súper económica.
+    """
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except KeyError:
+        return None, "⚠️ Error: Falta configurar OPENROUTER_API_KEY."
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": "https://importpro-suite.com",
+        "X-Title": "ImportPro Suite",
+        "Content-Type": "application/json"
+    }
+    
+    # Payload configurado para la modalidad de AUDIO
+    payload = {
+        "model": "openai/gpt-audio-mini",
+        "modalities": ["text", "audio"], # Le exigimos que devuelva audio
+        "audio": {
+            "voice": voz,
+            "format": "wav" # Formato de alta calidad compatible con reproductores web
+        },
+        "messages": [
+            {
+                "role": "user", 
+                "content": f"Lee este texto con tono persuasivo y comercial, sin leer los guiones o viñetas literalmente:\n\n{texto}"
+            }
+        ]
+    }
+    
+    try:
+        # Le damos un timeout más largo porque generar audio toma unos segundos extra
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        if response.status_code == 200:
+            data = response.json()
+            message = data['choices'][0]['message']
+            
+            # Extraemos la data codificada en base64 y la convertimos en bytes
+            if 'audio' in message and 'data' in message['audio']:
+                audio_b64 = message['audio']['data']
+                audio_bytes = base64.b64decode(audio_b64)
+                return audio_bytes, None
+            else:
+                return None, "❌ Error: La IA no devolvió el archivo de audio."
+        else:
+            return None, f"❌ Error de API ({response.status_code}): {response.text}"
+            
+    except requests.exceptions.RequestException as e:
+        return None, f"🔌 Error de conexión con la IA: {str(e)}"
