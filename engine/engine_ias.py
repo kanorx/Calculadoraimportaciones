@@ -1,5 +1,4 @@
 import requests
-import json
 import base64
 import streamlit as st
 
@@ -8,77 +7,61 @@ def call_openrouter_ai(prompt, image_input=None, task="marketing"):
     Motor de Inteligencia Artificial conectado a OpenRouter (Gemini / OpenAI).
     Procesa tanto texto plano como análisis de imágenes (Visión).
     """
-    # Intentamos obtener la clave API de los secretos de Streamlit
     try:
         api_key = st.secrets["OPENROUTER_API_KEY"]
     except KeyError:
         return "⚠️ Error: Falta configurar OPENROUTER_API_KEY en los secretos (st.secrets) de Streamlit."
 
     # ==========================================
-    # 1. DEFINICIÓN DE ROLES (SYSTEM PROMPTS)
+    # 1. DEFINICIÓN DE ROLES (LA CAMISA DE FUERZA)
     # ==========================================
     if task == "legal":
-        system_instruction = """Eres un Agente de Aduanas y experto en Aranceles de Colombia (DIAN).
-Tu trabajo es analizar el producto que el usuario te menciona o la imagen que te envía, y decirle:
-1. Qué subpartida arancelaria aproximada le corresponde.
-2. Si requiere vistos buenos (ej. INVIMA, SIC, etc.).
-3. Consejos para evitar retenciones en la aduana.
-Responde de forma clara, profesional y en viñetas."""
+        reglas_estrictas = """Eres un Agente de Aduanas y experto en Aranceles de Colombia (DIAN).
+Responde de forma clara, profesional y en viñetas:
+1. Subpartida arancelaria aproximada.
+2. Si requiere vistos buenos (INVIMA, SIC, etc.).
+3. Consejos para evitar retenciones."""
 
     elif task == "marketing":
-        # ¡EL PROMPT MAESTRO DEL CEO!
-        system_instruction = """Eres un copywriter experto en E-commerce y especialista en el algoritmo de SEO de MercadoLibre. 
-Tu objetivo es analizar la imagen o los datos del producto proporcionado y generar una publicación altamente persuasiva que convierta clics en ventas.
+        reglas_estrictas = """INSTRUCCIÓN SUPREMA: Eres un robot formateador estricto para MercadoLibre.
+REGLAS INQUEBRANTABLES:
+1. TÍTULO: 40-60 caracteres. Fórmula: [Producto] + [Característica]. PROHIBIDO usar "Oferta", "Envío", "Gratis", "Nuevo".
+2. FORMATO: TEXTO PLANO ABSOLUTO. PROHIBIDO usar asteriscos (*), negritas (**), o numerales (#).
+3. VIÑETAS: Usa solo guiones "-".
+4. CERO CHARLA: No saludes, no des consejos, no te despidas. Limítate a imprimir la estructura solicitada.
 
-REGLAS ESTRICTAS DEL ALGORITMO:
-1. TÍTULO: Debe tener exactamente entre 40 y 60 caracteres. Fórmula obligatoria: [Producto] + [Característica Principal]. PROHIBIDO usar palabras como "Oferta", "Envío Gratis" o "Nuevo".
-2. FORMATO DE TEXTO: MercadoLibre SOLO acepta texto plano. ESTÁ ESTRICTAMENTE PROHIBIDO usar formato Markdown como negritas (**), cursivas (*), o títulos grandes (#).
-3. VIÑETAS: Usa únicamente símbolos simples como "-" para las listas.
-4. TONO: Persuasivo, profesional y enfocado en resolver los problemas del comprador (Beneficios > Características).
-
-DEVUELVE TU RESPUESTA EXACTAMENTE CON ESTA ESTRUCTURA:
-
+ESTRUCTURA OBLIGATORIA (Cópiala exactamente):
 TÍTULO OPTIMIZADO:
-[Escribe el título aquí - Cuenta bien los caracteres]
+[Título]
 
 📝 Caracteristicas Adicionales:
-- [Característica técnica 1]
-- [Característica técnica 2]
-- [Característica técnica 3]
+- [Caract 1]
+- [Caract 2]
+- [Caract 3]
 
 🚀 ¿POR QUÉ ELEGIR ESTE PRODUCTO? (Descripción):
-ETIQUETAS Palabras clave(SEO) en todo el parrafo sutiles.
-[1 Párrafo gancho: Identifica el dolor o deseo del cliente en una frase corta]
-[1 Párrafo de solución: Explica cómo el producto mejora su vida]"""
+[1 Párrafo gancho identificando el dolor del cliente. Integra palabras clave SEO sutilmente]
+[1 Párrafo de solución explicando cómo mejora su vida]"""
 
     else:
-        system_instruction = "Eres un asistente experto en importaciones y comercio exterior."
+        reglas_estrictas = "Eres un asistente experto en importaciones."
+
+    # FUSIONAMOS LAS REGLAS CON LA PREGUNTA DEL USUARIO
+    texto_blindado = f"{reglas_estrictas}\n\n---\nDATOS DEL PRODUCTO A ANALIZAR:\n{prompt}"
 
     # ==========================================
     # 2. CONSTRUCCIÓN DEL MENSAJE (TEXTO + IMAGEN)
     # ==========================================
-    # Formato estándar de OpenRouter/OpenAI para visión
     user_content = []
+    user_content.append({"type": "text", "text": texto_blindado})
     
-    # Agregamos el texto
-    user_content.append({"type": "text", "text": prompt})
-    
-    # Si hay imagen, la convertimos a Base64 y la inyectamos
     if image_input is not None:
         try:
-            # Usamos .getvalue() para leer la memoria sin mover el cursor (el bug que arreglamos)
             b64_str = base64.b64encode(image_input.getvalue()).decode('utf-8')
-            
-            # Determinamos el tipo de imagen
-            mime_type = "image/jpeg"
-            if image_input.name.lower().endswith(".png"):
-                mime_type = "image/png"
-                
+            mime_type = "image/png" if image_input.name.lower().endswith(".png") else "image/jpeg"
             user_content.append({
                 "type": "image_url",
-                "image_url": {
-                    "url": f"data:{mime_type};base64,{b64_str}"
-                }
+                "image_url": {"url": f"data:{mime_type};base64,{b64_str}"}
             })
         except Exception as e:
             return f"⚠️ Error procesando la imagen: {str(e)}"
@@ -86,12 +69,10 @@ ETIQUETAS Palabras clave(SEO) en todo el parrafo sutiles.
     # ==========================================
     # 3. PETICIÓN A LA API
     # ==========================================
-    # Usamos Gemini 2.5 Flash a través de OpenRouter (super rápido y económico)
     url = "https://openrouter.ai/api/v1/chat/completions"
-    
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "HTTP-Referer": "https://importpro-suite.com", # Opcional, para estadísticas en OpenRouter
+        "HTTP-Referer": "https://importpro-suite.com",
         "X-Title": "ImportPro Suite",
         "Content-Type": "application/json"
     }
@@ -99,19 +80,17 @@ ETIQUETAS Palabras clave(SEO) en todo el parrafo sutiles.
     payload = {
         "model": "google/gemini-2.5-flash", 
         "messages": [
-            {"role": "system", "content": system_instruction},
+            # Eliminamos el rol 'system' y mandamos todo como 'user' para obligarlo a obedecer
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.7, # Creatividad controlada para marketing
-        "max_tokens": 1000
+        "temperature": 0.2, # Bajamos la creatividad casi a cero para que no invente formatos
+        "max_tokens": 800
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
         if response.status_code == 200:
-            data = response.json()
-            return data['choices'][0]['message']['content']
+            return response.json()['choices'][0]['message']['content']
         else:
             return f"❌ Error de API ({response.status_code}): {response.text}"
             
