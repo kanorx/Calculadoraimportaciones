@@ -139,12 +139,13 @@ def generar_audio_openrouter(texto, voz="nova"):
         "modalities": ["text", "audio"],
         "audio": {
             "voice": voz,
-            "format": "pcm16"  # Exigen datos crudos en streaming
+            "format": "pcm16"
         },
         "messages": [
             {
                 "role": "user", 
-                "content": f"Lee este texto con tono persuasivo y comercial, sin leer los guiones o viñetas literalmente:\n\n{texto}"
+                # AQUÍ ESTÁ LA MAGIA DEL LÍMITE DE TIEMPO Y FORMATO VIRAL:
+                "content": f"Actúa como un creador de contenido viral. Toma la siguiente descripción de producto y transfórmala en un guion persuasivo, dinámico y corto de MÁXIMO 75 palabras (para que el audio dure exactamente 30 a 35 segundos). Léelo con mucha energía comercial y fluidez, sin mencionar viñetas ni símbolos:\n\n{texto}"
             }
         ],
         "stream": True
