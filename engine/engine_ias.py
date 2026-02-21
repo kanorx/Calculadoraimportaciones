@@ -145,10 +145,11 @@ def generar_audio_openrouter(texto, voz="nova"):
             {
                 "role": "user", 
                 "content": f"""
-                ERES UN LOCUTOR DE TIKTOKER COMERCIAL Y ESTRELLA. 
+                ERES UN LTIKTOKER COMERCIAL Y ESTRELLA. 
                 Tu objetivo es que el cliente SIENTA que necesita este producto YA.
                 
                 REGLAS DE ACTUACIÓN:
+                |. Usar acento Colombiano Sutil
                 1. ¡TU VOZ DEBE SER ENÉRGICA, DINÁMICA Y MUY EMOCIONANTE! 
                 2. Usa entonaciones variadas, nada de hablar plano.
                 3. Haz pausas dramáticas donde veas puntos.
@@ -158,7 +159,6 @@ def generar_audio_openrouter(texto, voz="nova"):
                 
                 TEXTO: {texto}
                 
-                IMPORTANTE: Devuelve SOLO el audio con el guion convertido a un tono de oferta relámpago, usando palabras como ¡Solo por hoy!'.
                 """
             }
         ],
